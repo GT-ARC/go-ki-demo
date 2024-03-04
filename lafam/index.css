@@ -1,0 +1,506 @@
+body,
+html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    /* Full width of the canvas wrapper */
+    height: 100%;
+    /* Full height of the canvas wrapper */
+    background: rgba(0, 0, 0, 0.7);
+    /* Semi-transparent background */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-size: 1.5em;
+}
+
+#loading-text {
+    margin-top: 20px;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.loading svg {
+    width: 10vw;
+    height: 10vw;
+
+    animation: spin 1s steps(8, end) infinite;
+}
+.loading svg path {
+    fill: white;
+}
+
+.main-section {
+    display: flex;
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+.canvas-block,
+.record-block {
+    flex: 1;
+    box-sizing: border-box;
+}
+
+.record-block {
+    margin: 0 0 0 10px;
+}
+
+.canvas-wrapper {
+    position: relative;
+}
+
+.canvas-wrapper canvas {
+    width: 100%;
+}
+
+#heatmap-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    opacity: 0.5;
+}
+
+#img-canvas,
+#heatmap-canvas {
+    max-width: 100%;
+    height: auto;
+}
+
+.button-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.button-group button {
+    margin-right: 10px;
+}
+
+#start-button {
+    display: none;
+}
+
+#switch-camera-button {
+    display: none;
+}
+
+.multiple-cameras #switch-camera-button {
+    display: block !important;
+}
+
+button {
+    padding: 6px 10px;
+    border: none;
+    border-radius: 5px;
+    background-color: #007BFF;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+button svg {
+    width: 24;
+    height: 24;
+}
+
+.paused .pause-icon {
+    display: none;
+}
+
+.paused .play-icon {
+    display: block;
+}
+
+.play-icon {
+    display: none;
+}
+
+/* Style the wrapper to make it look like a single button */
+.upload-wrapper {
+    margin-right: 10px;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    border-radius: 5px;
+    background-color: #ccc;
+    cursor: not-allowed;
+    color: white;
+    overflow: hidden;
+    padding: 2px;
+}
+
+.ready .upload-wrapper {
+    background-color: #007BFF;
+    cursor: pointer;
+}
+
+.upload-wrapper div {
+    padding: 4px 10px;
+    border-right: 1px solid white;
+}
+
+.upload-wrapper div svg {
+    width: 24px;
+    height: 24px;
+    fill: white;
+}
+
+/* Style the select dropdown */
+.upload-wrapper select {
+    -webkit-appearance: none;
+    /* Remove default dropdown arrow */
+    -moz-appearance: none;
+    appearance: none;
+    /* Match the wrapper's background color */
+    border: none;
+    padding: 5px;
+    width: 22px;
+    margin-left: 1px;
+    color: white;
+    cursor: pointer;
+    outline: none;
+    background-color: #ccc;
+}
+
+.ready .upload-wrapper select {
+    background-color: #007BFF;
+}
+
+/* Create a custom dropdown arrow */
+.upload-wrapper:after {
+    content: '▼';
+    /* Custom dropdown arrow */
+    color: white;
+    position: absolute;
+    right: 7px;
+    pointer-events: none;
+    /* Clicks will pass through to the select element */
+    font-size: 12px;
+}
+
+.ready .upload-wrapper:after {
+    background-color: #007BFF;
+}
+
+.ready .upload-wrapper:hover:after {
+    background-color: #0056b3;
+}
+
+/* Ensure the hover effect applies to both button and select at once */
+.ready .upload-wrapper:hover {
+    background-color: #0056b3;
+    /* Darker shade for hover effect */
+}
+
+.ready .upload-wrapper:hover select {
+    background-color: #0056b3;
+    /* Ensure elements don't have different hover colors */
+}
+
+.paused.ready #grid {
+    display: grid;
+}
+
+#grid {
+    display: none;
+    z-index: 2;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    grid-template-columns: repeat(7, 1fr);
+    cursor: pointer;
+
+}
+
+#grid div {
+    border: 1px solid #fff;
+    transition: box-shadow 0.2s;
+}
+
+#grid div:hover {
+    border: 1px solid #fff;
+    box-shadow: 0 0 20px 5px #fff;
+}
+
+#grid div.selected{
+    border: 1px solid #007BFF;
+    box-shadow: 0 0 10px 5px #48abe0;
+
+}
+
+
+/* #grid div::after {
+    background: radial-gradient(
+      600px circle at var(--mouse-x) var(--mouse-y), 
+      rgba(255, 255, 255, 0.6),
+      transparent 20%
+    );
+  } */
+
+
+.card,
+.overlay-card {
+    padding: 10px;
+    border-radius: 5px;
+    box-sizing: border-box;
+}
+
+.card {
+    box-shadow: 0 2px 6px 2px rgba(0, 0, 0.08, 0.15);
+}
+
+
+#slider-container {
+    flex-grow: 1;
+}
+
+#slider-container input {
+    width: 100%;
+}
+
+.predictions-container {
+    margin-top: 10px;
+}
+
+.predictions-container h4 {
+    margin: 0 0 10px 0;
+}
+
+#prediction-list {
+    display: flex;
+    flex-flow: column;
+    overflow-y: auto;
+}
+
+.prediction-title {
+    /* H4 */
+    display: flex;
+    flex-direction: row;
+    /* justify-content: space-between; */
+    font-size:  1.17em;
+    font-weight: bold;
+    margin: 0 0 15px 0;
+}
+
+.prediction-title svg {
+    margin-left: 10px;
+    width: 1.5vw;
+    fill: #007BFF;
+    cursor: pointer;
+}
+
+.prediction-title svg:hover {
+    fill: #0056b3;
+}
+
+
+.prediction {
+    display: flex;
+    flex-direction: column;
+}
+
+.prediction.selected {
+    background: #ece5ff !important;
+}
+
+#main-section.paused .prediction {
+    cursor: pointer;
+    background: #e9ecef;
+    border: 1px solid #ced4da;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 10px 15px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+
+}
+
+#main-section.paused .prediction:hover {
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+}
+
+#main-section:not(.paused) .prediction {
+    cursor: default;
+    background: #fff;
+    border: 1px solid #e9ecef;
+    box-shadow: none;
+    padding: 10px 15px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+#loading-text {
+    font-size: 1.5vw;
+}
+
+@media (max-width: 767px) {
+    .main-section {
+        flex-direction: column;
+    }
+
+    .record-block {
+        margin: 10px 0 0 0;
+    }
+
+    #loading-text {
+        font-size: 3vw;
+    }
+}
+
+@media (max-width: 1024px) {
+    .main-section {
+        flex-wrap: wrap;
+    }
+
+    .button-group {
+        justify-content: space-between;
+    }
+
+    #slider-container {
+        order: 3;
+        margin-top: 10px;
+    }
+}
+
+#palette-select {
+    display: inline-block;
+    width: auto;
+    padding: 8px 30px 8px 12px;
+    font-size: 16px;
+    border-radius: 5px;
+    border: 2px solid #007BFF;
+    appearance: none;
+    -moz-appearance: none;
+    -webkit-appearance: none;
+    background-color: #fff;
+    color: #333;
+    cursor: pointer;
+    line-height: 1.1;
+    outline: none;
+}
+
+/* Optionally, add a wrap div for positioning a custom background arrow */
+.select-wrapper {
+    position: relative;
+    display: inline-block;
+    /* Adjust width and display as necessary */
+}
+
+.select-wrapper:after {
+    content: '▼';
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: #007BFF;
+    font-size: 0.8em;
+}
+
+
+.overlay {
+    display: none;
+    background: rgba(0, 0, 0, 0.5);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    /* Allow clicks to pass through */
+    z-index: 10;
+    /* Ensure it's above other content */
+}
+
+.overlay .description {
+    position: relative;
+    /* Needed for absolute positioning of pseudo-elements */
+    display: inline-block;
+    /* Or block, depending on your layout */
+}
+
+.overlay .description::before {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 0;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-bottom: 10px solid black;
+    /* Example arrow pointing upwards */
+    top: -20px;
+    /* Adjust as necessary */
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.overlay .description::after {
+    content: attr(data-description);
+    /* Use the data-description attribute for text */
+    position: absolute;
+    top: -40px;
+    /* Adjust as necessary */
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: white;
+    padding: 5px;
+    border: 1px solid black;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    /* Prevents the text from wrapping */
+}
+
+
+/* Toggle visibility */
+body.show-help .overlay {
+    display: block;
+}
+
+.overlay .button-group button {
+    opacity: 0;
+}
+
+.overlay .button-group button span {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+}
+
+.overlay .button-group button.overlay-switch-camera {
+    display: none;
+}
+
+.multiple-cameras .overlay .button-group button.overlay-switch-camera {
+    display: block;
+}
