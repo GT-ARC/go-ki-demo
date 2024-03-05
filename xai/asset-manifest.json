@@ -1,15 +1,15 @@
 {
   "files": {
-    "main.css": "/xai/static/css/main.65b495b6.css",
-    "main.js": "/xai/static/js/main.6164a2a1.js",
-    "static/js/453.ed3810f9.chunk.js": "/xai/static/js/453.ed3810f9.chunk.js",
-    "static/media/bmas-logo.svg": "/xai/static/media/bmas-logo.3cfe58ad3d0fbe748f09abdce2789939.svg",
-    "static/media/goki-logo.svg": "/xai/static/media/goki-logo.c0e45d6ebfae585288433abf88bc3fc2.svg",
-    "static/media/zeki-logo.svg": "/xai/static/media/zeki-logo.89d7df103b5135e4f790aed57e2361e3.svg",
-    "index.html": "/xai/index.html",
-    "main.65b495b6.css.map": "/xai/static/css/main.65b495b6.css.map",
-    "main.6164a2a1.js.map": "/xai/static/js/main.6164a2a1.js.map",
-    "453.ed3810f9.chunk.js.map": "/xai/static/js/453.ed3810f9.chunk.js.map"
+    "main.css": "/go-ki-demo/xai/static/css/main.65b495b6.css",
+    "main.js": "/go-ki-demo/xai/static/js/main.6164a2a1.js",
+    "static/js/453.ed3810f9.chunk.js": "/go-ki-demo/xai/static/js/453.ed3810f9.chunk.js",
+    "static/media/bmas-logo.svg": "/go-ki-demo/xai/static/media/bmas-logo.3cfe58ad3d0fbe748f09abdce2789939.svg",
+    "static/media/goki-logo.svg": "/go-ki-demo/xai/static/media/goki-logo.c0e45d6ebfae585288433abf88bc3fc2.svg",
+    "static/media/zeki-logo.svg": "/go-ki-demo/xai/static/media/zeki-logo.89d7df103b5135e4f790aed57e2361e3.svg",
+    "index.html": "/go-ki-demo/xai/index.html",
+    "main.65b495b6.css.map": "/go-ki-demo/xai/static/css/main.65b495b6.css.map",
+    "main.6164a2a1.js.map": "/go-ki-demo/xai/static/js/main.6164a2a1.js.map",
+    "453.ed3810f9.chunk.js.map": "/go-ki-demo/xai/static/js/453.ed3810f9.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.65b495b6.css",
