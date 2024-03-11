@@ -43,7 +43,9 @@ onmessage = async (e) => {
 
   if (data.status === "heatmap_by_class") {
     let output = new Float32Array(1000).fill(0);
-    output[data.classIdx] = results[data.classIdx];
+    for (const idx of data.classIdxs) {
+      output[idx] = results[idx];
+    }
     //w = torch.mm(output, resnet_output_weights)
     const w = matrixMultiply(output, output_weights);
     const weighted_heatmap = averageHeatmap(activations, [2048, 7, 7], w);
@@ -55,13 +57,12 @@ onmessage = async (e) => {
   }
 
   if (data.status === "class_by_heatmap") {
-    const idx = data.cellIdx;
-
     let a = new Float32Array(2048 * 7 * 7).fill(0);
     for (let i = 0; i < 2048; i++) {
-      a[i * 7 * 7 + idx] = 20*activations[i * 7 * 7 + idx];
+      for (const idx of data.classIdxs) {
+        a[i * 7 * 7 + idx] = 20 * activations[i * 7 * 7 + idx];
+      }
     }
-
 
     let logits = await fc.run({
       l_activations_: new ort.Tensor("float32", a, [1, 2048, 7, 7]),
