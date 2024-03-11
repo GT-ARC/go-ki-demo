@@ -110,7 +110,7 @@ html {
     padding: 6px 10px;
     border: none;
     border-radius: 5px;
-    background-color: #007BFF;
+    background-color: #e58253;
     color: white;
     font-size: 16px;
     cursor: pointer;
@@ -118,7 +118,7 @@ html {
 }
 
 .btn:hover {
-    background-color: #0056b3;
+    background-color: #d7642f;
 }
 
 .btn:disabled {
@@ -158,7 +158,7 @@ html {
 }
 
 .ready .upload-wrapper {
-    background-color: #007BFF;
+    background-color: #e58253;
     cursor: pointer;
 }
 
@@ -191,7 +191,7 @@ html {
 }
 
 .ready .upload-wrapper select {
-    background-color: #007BFF;
+    background-color: #e58253;
 }
 
 /* Create a custom dropdown arrow */
@@ -207,21 +207,21 @@ html {
 }
 
 .ready .upload-wrapper:after {
-    background-color: #007BFF;
+    background-color: #e58253;
 }
 
 .ready .upload-wrapper:hover:after {
-    background-color: #0056b3;
+    background-color: #d7642f;
 }
 
 /* Ensure the hover effect applies to both button and select at once */
 .ready .upload-wrapper:hover {
-    background-color: #0056b3;
+    background-color: #d7642f;
     /* Darker shade for hover effect */
 }
 
 .ready .upload-wrapper:hover select {
-    background-color: #0056b3;
+    background-color: #d7642f;
     /* Ensure elements don't have different hover colors */
 }
 
@@ -253,7 +253,7 @@ html {
 }
 
 #grid div.selected {
-    border: 1px solid #007BFF;
+    border: 1px solid #e58253;
     box-shadow: 0 0 10px 5px #48abe0;
 
 }
@@ -353,7 +353,7 @@ html {
 }
 
 /* .prediction-title svg:hover {
-    fill: #0056b3;
+    fill: #d7642f;
 } */
 
 
@@ -432,7 +432,7 @@ html {
     padding: 8px 30px 8px 12px;
     font-size: 16px;
     border-radius: 5px;
-    border: 2px solid #007BFF;
+    border: 2px solid #e58253;
     appearance: none;
     -moz-appearance: none;
     -webkit-appearance: none;
@@ -457,7 +457,7 @@ html {
     top: 50%;
     transform: translateY(-50%);
     pointer-events: none;
-    color: #007BFF;
+    color: #e58253;
     font-size: 0.8em;
 }
 
