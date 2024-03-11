@@ -2,7 +2,6 @@
 
 <head>
     <meta charset="utf-8">
-    <meta name="author" content="Aray Karjauv">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>LaFAM Live Demo</title>
 
@@ -82,7 +81,7 @@
             <div class="card">
                 <div class="button-group">
                     <!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.-->
-                    <button id="start-button" disabled>
+                    <button id="start-button" class="btn" disabled>
                         <svg class="play-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"
                             fill="currentColor">
                             <path
@@ -94,7 +93,7 @@
                                 d="M48 64C21.5 64 0 85.5 0 112V400c0 26.5 21.5 48 48 48H80c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H48zm192 0c-26.5 0-48 21.5-48 48V400c0 26.5 21.5 48 48 48h32c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H240z" />
                         </svg>
                     </button>
-                    <button id="switch-camera-button" disabled>
+                    <button id="switch-camera-button" class="btn" disabled>
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512" fill="currentColor">
                             <path
                                 d="M213.1 64.8L202.7 96H128c-35.3 0-64 28.7-64 64V416c0 35.3 28.7 64 64 64H512c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H437.3L426.9 64.8C420.4 45.2 402.1 32 381.4 32H258.6c-20.7 0-39 13.2-45.5 32.8zM448 256c0 8.8-7.2 16-16 16H355.3c-6.2 0-11.3-5.1-11.3-11.3c0-3 1.2-5.9 3.3-8L371 229c-13.6-13.4-31.9-21-51-21c-19.2 0-37.7 7.6-51.3 21.3L249 249c-9.4 9.4-24.6 9.4-33.9 0s-9.4-24.6 0-33.9l19.7-19.7C257.4 172.7 288 160 320 160c31.8 0 62.4 12.6 85 35l23.7-23.7c2.1-2.1 5-3.3 8-3.3c6.2 0 11.3 5.1 11.3 11.3V256zM192 320c0-8.8 7.2-16 16-16h76.7c6.2 0 11.3 5.1 11.3 11.3c0 3-1.2 5.9-3.3 8L269 347c13.6 13.4 31.9 21 51 21c19.2 0 37.7-7.6 51.3-21.3L391 327c9.4-9.4 24.6-9.4 33.9 0s9.4 24.6 0 33.9l-19.7 19.7C382.6 403.3 352 416 320 416c-31.8 0-62.4-12.6-85-35l-23.7 23.7c-2.1 2.1-5 3.3-8 3.3c-6.2 0-11.3-5.1-11.3-11.3V320z" />
@@ -111,6 +110,8 @@
                         <select id="predefined-files">
                             <option value="" disabled selected hidden></option>
                             <option value="dog_and_cat.jpg">Dog & Cat</option>
+                            <option value="self-driving.png">Self-driving car</option>
+                            <option value="misc.png">Misc</option>
                         </select>
                     </div>
                     <div class="select-wrapper">
@@ -127,31 +128,48 @@
             <div class="predictions-container card">
                 <div class="prediction-title">
                     <div>Predictions</div>
-                    <svg xmlns="http://www.w3.org/2000/svg"
+                    <!-- <svg xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 512 512">
                         <path
                             d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM216 336h24V272H216c-13.3 0-24-10.7-24-24s10.7-24 24-24h48c13.3 0 24 10.7 24 24v88h8c13.3 0 24 10.7 24 24s-10.7 24-24 24H216c-13.3 0-24-10.7-24-24s10.7-24 24-24zm40-208a32 32 0 1 1 0 64 32 32 0 1 1 0-64z" />
-                    </svg>
+                    </svg> -->
+                    <button id="clear-selection" disabled>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512">
+                            <path
+                                d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z" />
+                        </svg>
+                    </button>
                 </div>
                 <div id="prediction-list">
+                    <!-- The prediction list goes here -->
                 </div>
             </div>
         </div>
     </section>
 
+    <section style="margin: 10px 10px 20px 10px;">
+        <h2>About</h2>
+        This interactive demo showcases the Label-free Activation Map for Convolutional Neural Networks. It uses a ResNet50 model trained on the ImageNet dataset (<a href="imagenet_class_index.json" target="_blank">1000 categories</a>) and generates heatmaps from the model's final convolutional layer without relying on labels.
 
-    <section style="margin: 10px;">
-        <h2>Über</h2>
-        Diese interaktive Demo zeigt die Label-free Activation Map für Faltungs-Neuronale Netze (CNNs). Es verwendet ein ResNet50-Modell, das auf dem ImageNet-Datensatz trainiert wurde (<a href="imagenet_class_index.json" target="_blank">1000 Kategorien</a>) und generiert Heatmaps aus der letzten Faltungsschicht des Modells, ohne sich auf Beschriftungen zu verlassen.
-
-        <h4>Interaktionen</h4>
-        Verwenden Sie Ihre Kamera, laden Sie ein Bild hoch oder wählen Sie ein vordefiniertes Bild aus dem Dropdown-Menü aus. Um mit den Vorhersagen zu interagieren, müssen Sie zunächst die Kamera anhalten, sofern sie aktiv ist.
+        <h4>Interactions</h4>
+        Use your camera, upload an image, or select a pre-defined image from the dropdown menu. To interact with the predictions, you first need to pause the camera first if it's active.
         <ul>
-            <li>Klicken Sie auf Vorhersagen, um verwandte Bildbereiche anzuzeigen.</li>
-            <li>Klicken Sie auf Bildbereiche, um die zugehörigen Vorhersagen anzuzeigen. </li>
+            <li>Click on predictions to see related image regions.</li>
+            <li>Click on image regions to view associated predictions. </li>
         </ul>
     </section>
 
+    <section id="debug-section" style="margin: 200px 20px 20px">
+        <h3>Debug</h3>
+        <button onclick="updateServiceWorker()">Hard reload</button>
+        <h4>Available devices</h4>
+        <textarea id="devices" style='width: 100%;' rows='10' disabled></textarea>
+        <h4>Log</h3>
+            <textarea id='log' style='width: 100%;' rows='10' disabled></textarea>
+
+
+    </section>
+    <br>
     <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
     <script src="index.js"></script>
 

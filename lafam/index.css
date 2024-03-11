@@ -40,6 +40,7 @@ html {
 
     animation: spin 1s steps(8, end) infinite;
 }
+
 .loading svg path {
     fill: white;
 }
@@ -105,7 +106,7 @@ html {
     display: block !important;
 }
 
-button {
+.btn {
     padding: 6px 10px;
     border: none;
     border-radius: 5px;
@@ -116,16 +117,16 @@ button {
     transition: background-color 0.3s;
 }
 
-button:hover {
+.btn:hover {
     background-color: #0056b3;
 }
 
-button:disabled {
+.btn:disabled {
     background-color: #ccc;
     cursor: not-allowed;
 }
 
-button svg {
+.btn svg {
     width: 24;
     height: 24;
 }
@@ -251,7 +252,7 @@ button svg {
     box-shadow: 0 0 20px 5px #fff;
 }
 
-#grid div.selected{
+#grid div.selected {
     border: 1px solid #007BFF;
     box-shadow: 0 0 10px 5px #48abe0;
 
@@ -305,22 +306,55 @@ button svg {
     /* H4 */
     display: flex;
     flex-direction: row;
+    align-items: flex-end;
     /* justify-content: space-between; */
-    font-size:  1.17em;
+    font-size: 1.17em;
     font-weight: bold;
     margin: 0 0 15px 0;
 }
 
-.prediction-title svg {
-    margin-left: 10px;
-    width: 1.5vw;
-    fill: #007BFF;
-    cursor: pointer;
+#clear-selection {
+    align-items: center;
+    width: 30px;
+    background-color: #fff;
+    transition: background-color 0.3s;
+    border-radius: 5px;
 }
 
-.prediction-title svg:hover {
-    fill: #0056b3;
+#clear-selection:not(:disabled) {
+    cursor: pointer;
+    background-color: #fff;
+    border: 1px solid #c14d4d;
 }
+
+#clear-selection:disabled {
+    border: 1px solid #a2a2a2;
+}
+
+#clear-selection:disabled svg{
+    fill: #a2a2a2;
+}
+
+#clear-selection:not(:disabled):hover {
+    background-color: #c14d4d;
+}
+
+#clear-selection:not(:disabled) svg {
+    fill: #c14d4d;
+}
+
+#clear-selection:not(:disabled):hover svg {
+    fill: #fff;
+}
+
+
+.prediction-title button {
+    margin-left: 10px;
+}
+
+/* .prediction-title svg:hover {
+    fill: #0056b3;
+} */
 
 
 .prediction {
@@ -329,7 +363,7 @@ button svg {
 }
 
 .prediction.selected {
-    background: #ece5ff !important;
+    background: linear-gradient(145deg, #cdc28d, #f6eab8) !important;
 }
 
 #main-section.paused .prediction {
