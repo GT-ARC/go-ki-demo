@@ -29,6 +29,10 @@ class ModelWorker {
     this.initElements();
     this.initEvents();
 
+    fetch("./imagenet_class_index.json")
+      .then((response) => response.json())
+      .then((data) => (this.imagenet_classes = data));
+
     fetch("palettes.json")
       .then((response) => response.json())
       .then((data) => {
@@ -143,23 +147,29 @@ class ModelWorker {
         }
       }
 
-
       if (selectedIdxs.length > 0) {
         this.clearSelection.disabled = false;
         this.worker.postMessage({
           status: "heatmap_by_class",
           classIdxs: selectedIdxs,
         });
-      }
-      else{
+      } else {
         this.clearSelection.disabled = true;
-        this.updateResults(this.results.heatmap, this.results.predictions);
+        this.updateResults(
+          this.results.heatmap,
+          this.results.predictions,
+          this.results.logits
+        );
       }
     });
 
     this.clearSelection.addEventListener("click", () => {
       this._clearSelections();
-      this.updateResults(this.results.heatmap, this.results.predictions);
+      this.updateResults(
+        this.results.heatmap,
+        this.results.predictions,
+        this.results.logits
+      );
     });
 
     this.heatmapOpacity.oninput = () => {
@@ -208,7 +218,11 @@ class ModelWorker {
         });
       } else {
         this.clearSelection.disabled = true;
-        this.updateResults(this.results.heatmap, this.results.predictions);
+        this.updateResults(
+          this.results.heatmap,
+          this.results.predictions,
+          this.results.logits
+        );
       }
     });
   }
@@ -236,9 +250,9 @@ class ModelWorker {
   async initCamera() {
     let $this = this;
 
-    this.imagenet_classes = await fetch("./imagenet_class_index.json").then(
-      (response) => response.json()
-    );
+    const state = await navigator.permissions.query({ name: "camera" });
+    if (state.state === "denied") 
+      return;
 
     let cameras = await navigator.mediaDevices.enumerateDevices();
     debug_devices.textContent = JSON.stringify(cameras, null, 2);
@@ -330,14 +344,14 @@ class ModelWorker {
     }
     if (data.status === "results") {
       this.results = data;
-      this.updateResults(data.heatmap, data.predictions);
+      this.updateResults(data.heatmap, data.predictions, data.logits);
     }
     if (data.status === "weighted_heatmap") {
       this.updateHeatmap(data.heatmap);
     }
     if (data.status === "class_by_heatmap") {
-      const top_n_idx = argmax_top_n(data.predictions, TOP_N, 0.01);
-      this._updatePredictionList(top_n_idx, data.predictions);
+      const top_n_idx = argmax_top_n(data.logits, TOP_N, 1.7);
+      this._updatePredictionList(top_n_idx, data.predictions, data.logits);
     }
   }
 
@@ -383,12 +397,12 @@ class ModelWorker {
     });
   }
 
-  async updateResults(heatmap, predictions) {
+  async updateResults(heatmap, predictions, logits) {
     this.updateHeatmap(heatmap);
 
-    let top_n_idx = argmax_top_n(predictions, TOP_N, 0.01);
+    let top_n_idx = argmax_top_n(logits, TOP_N, 1.7);
 
-    this._updatePredictionList(top_n_idx, predictions);
+    this._updatePredictionList(top_n_idx, predictions, logits);
 
     if (!this.video.paused) {
       this._postMessage(this.getImage(this.video));
@@ -416,7 +430,7 @@ class ModelWorker {
     );
   }
 
-  _updatePredictionList(indices, predictions) {
+  _updatePredictionList(indices, predictions, logits) {
     // create list with progress bars
     this.predictionList.innerHTML = "";
     const fragment = document.createDocumentFragment();
@@ -425,11 +439,15 @@ class ModelWorker {
       let div = document.createElement("div");
       div.classList.add("prediction");
       div.setAttribute("data-idx", idx);
+      // div.setAttribute("data-logits", logits[idx]);
 
       let label = document.createElement("label");
       const cls = this.imagenet_classes[idx];
       const prob = predictions[idx];
-      label.textContent = `${cls}: ${Math.round(prob * 100)}%`;
+      const l = logits[idx].toFixed(2);
+      label.innerHTML = `<b>${cls}</b> (Logits: ${l}; Softmax: ${Math.round(
+        prob * 100
+      )}%)`;
       div.appendChild(label);
 
       let progress = document.createElement("progress");
@@ -680,16 +698,16 @@ class ImageProcessor {
   }
 }
 
-function argmax_top_n(arr, n, threshold = 0) {
-  let indices = arr.map((e, i) => i);
-  indices.sort((a, b) => arr[b] - arr[a]);
+function argmax_top_n(logits, n, threshold = 0) {
+  let indices = logits.map((e, i) => i);
+  indices.sort((a, b) => logits[b] - logits[a]);
   let top_n = [];
   for (let i = 0; i < n; i++) {
-    if (arr[indices[i]] > threshold) {
-      top_n.push(indices[i]);
-    }
+    if (logits[indices[i]] < threshold) break;
+
+    top_n.push(indices[i]);
   }
-  return top_n.slice(0, n);
+  return top_n; //.slice(0, n);
 }
 
 function updateServiceWorker() {
