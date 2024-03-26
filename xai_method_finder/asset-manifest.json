@@ -1,18 +1,18 @@
 {
   "files": {
-    "main.css": "/go-ki-demo/xai_method_finder/static/css/main.fd044717.css",
-    "main.js": "/go-ki-demo/xai_method_finder/static/js/main.e0fddde1.js",
+    "main.css": "/go-ki-demo/xai_method_finder/static/css/main.4e942df2.css",
+    "main.js": "/go-ki-demo/xai_method_finder/static/js/main.90d1c193.js",
     "static/js/453.ed3810f9.chunk.js": "/go-ki-demo/xai_method_finder/static/js/453.ed3810f9.chunk.js",
     "static/media/bmas-logo.svg": "/go-ki-demo/xai_method_finder/static/media/bmas-logo.3cfe58ad3d0fbe748f09abdce2789939.svg",
     "static/media/goki-logo.svg": "/go-ki-demo/xai_method_finder/static/media/goki-logo.c0e45d6ebfae585288433abf88bc3fc2.svg",
     "static/media/zeki-logo.svg": "/go-ki-demo/xai_method_finder/static/media/zeki-logo.89d7df103b5135e4f790aed57e2361e3.svg",
     "index.html": "/go-ki-demo/xai_method_finder/index.html",
-    "main.fd044717.css.map": "/go-ki-demo/xai_method_finder/static/css/main.fd044717.css.map",
-    "main.e0fddde1.js.map": "/go-ki-demo/xai_method_finder/static/js/main.e0fddde1.js.map",
+    "main.4e942df2.css.map": "/go-ki-demo/xai_method_finder/static/css/main.4e942df2.css.map",
+    "main.90d1c193.js.map": "/go-ki-demo/xai_method_finder/static/js/main.90d1c193.js.map",
     "453.ed3810f9.chunk.js.map": "/go-ki-demo/xai_method_finder/static/js/453.ed3810f9.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.fd044717.css",
-    "static/js/main.e0fddde1.js"
+    "static/css/main.4e942df2.css",
+    "static/js/main.90d1c193.js"
   ]
 }
