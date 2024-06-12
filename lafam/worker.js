@@ -1,6 +1,9 @@
 // imort onnxruntime-web by url into worker
-importScripts("https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js");
-ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/";
+importScripts(
+  "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.3/dist/ort.min.js"
+);
+ort.env.wasm.wasmPaths =
+  "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.3/dist/";
 
 const INPUT_WIDTH = 224;
 const INPUT_HEIGHT = 224;
