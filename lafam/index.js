@@ -215,6 +215,7 @@ class ModelWorker {
 
             if (classIdxs.length > 0) {
                 this.clearSelection.disabled = false;
+                console.log(classIdxs);
                 $this.worker.postMessage({
                     status: "class_by_heatmap",
                     classIdxs: classIdxs,

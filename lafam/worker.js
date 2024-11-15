@@ -47,8 +47,27 @@ onmessage = async (e) => {
         const predictions = Array.from(softmax(results));
         const heatmap = averageHeatmap(activations, [2048, 7, 7]);
 
+        // classify squares individually
+        const squaresData = [];
+        for (let squareId = 0; squareId < 49; squareId++) {
+            let maskedActivations = new Float32Array(2048 * 7 * 7).fill(0);
+            for (let layerId = 0; layerId < 2048; layerId++) {
+                maskedActivations[layerId * 7 * 7 + squareId] = 20 * activations[layerId * 7 * 7 + squareId];
+            }
+
+            let squareLogits = await fc.run({ l_activations_: new ort.Tensor("float32", maskedActivations, [1, 2048, 7, 7]) });
+            squareLogits = squareLogits.fc_1.cpuData;
+            const squarePredictions = Array.from(softmax(squareLogits));
+
+            squaresData.push({
+                logits: squareLogits,
+                predictions: squarePredictions,
+            });
+        }
+
+        /*
         // classify each square individually
-        const squares = getMaskedImages(imgDataTensor);
+        const squares = []; // getMaskedImages(imgDataTensor);
         let squaresData = [];
         for (let i = 0; i < squares.length; i++) {
             const squareTensor = squares[i];
@@ -59,7 +78,7 @@ onmessage = async (e) => {
             const squareActivationsTensor = new ort.Tensor(
                 "float32",
                 squareActivations,
-                [1, 2048, 7, 7] // ???
+                [1, 2048, 7, 7]
             );
 
             let squareLogits = await fc.run({ l_activations_: squareActivationsTensor });
@@ -72,6 +91,7 @@ onmessage = async (e) => {
                 predictions: squarePredictions,
             });
         }
+         */
 
         postMessage({
             status: "results",
@@ -138,7 +158,7 @@ onmessage = async (e) => {
     postMessage({ status: "ready" });
 })();
 
-function getMaskedImages(imgTensor) {
+function getMaskedImages(imgTensor, shape) {
     let maskedImages = [];
     const width = INPUT_WIDTH / 7;
     const height = INPUT_HEIGHT / 7;
