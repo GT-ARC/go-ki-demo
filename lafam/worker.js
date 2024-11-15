@@ -8,19 +8,11 @@ ort.env.wasm.wasmPaths =
 const INPUT_WIDTH = 224;
 const INPUT_HEIGHT = 224;
 
-// final of the 4 convolutional layers (i think)
 let layer4;
-
-// fully-connected layer
 let fc;
-
-// tbd
+let fc_wo_pooling; // fc without average-pooling
 let results;
-
-// final layer before the pooling i think?
 let activations;
-
-// tbd
 let output_weights;
 
 
@@ -47,58 +39,39 @@ onmessage = async (e) => {
         const predictions = Array.from(softmax(results));
         const heatmap = averageHeatmap(activations, [2048, 7, 7]);
 
-        // classify squares individually
-        const squaresData = [];
-        for (let squareId = 0; squareId < 49; squareId++) {
-            let maskedActivations = new Float32Array(2048 * 7 * 7).fill(0);
-            for (let layerId = 0; layerId < 2048; layerId++) {
-                maskedActivations[layerId * 7 * 7 + squareId] = 20 * activations[layerId * 7 * 7 + squareId];
-            }
-
-            let squareLogits = await fc.run({ l_activations_: new ort.Tensor("float32", maskedActivations, [1, 2048, 7, 7]) });
-            squareLogits = squareLogits.fc_1.cpuData;
-            const squarePredictions = Array.from(softmax(squareLogits));
-
-            squaresData.push({
-                logits: squareLogits,
-                predictions: squarePredictions,
-            });
-        }
-
-        /*
-        // classify each square individually
-        const squares = []; // getMaskedImages(imgDataTensor);
-        let squaresData = [];
-        for (let i = 0; i < squares.length; i++) {
-            const squareTensor = squares[i];
-
-            let squareActivations = await layer4.run({ l_x_: squareTensor });
-            squareActivations = squareActivations.resnet_layer4_1.cpuData;
-
-            const squareActivationsTensor = new ort.Tensor(
-                "float32",
-                squareActivations,
-                [1, 2048, 7, 7]
-            );
-
-            let squareLogits = await fc.run({ l_activations_: squareActivationsTensor });
-            squareLogits = squareLogits.fc_1.cpuData;
-
-            const squarePredictions = Array.from(softmax(squareLogits));
-
-            squaresData.push({
-                logits: squareLogits,
-                predictions: squarePredictions,
-            });
-        }
-         */
-
         postMessage({
             status: "results",
             logits: results,
             predictions: predictions,
             heatmap: heatmap,
-            cropsData: squaresData,
+        });
+    }
+
+    if (data.status === "predict_per_square") {
+        let squaresData = [];
+
+        for (let squareId = 0; squareId < 49; squareId++) {
+            let squareActivations = new Float32Array(2048).fill(0);
+
+            for (let layerId = 0; layerId < 2048; layerId++) {
+                squareActivations[layerId] = activations[layerId * 7 * 7 + squareId];
+            }
+
+            let squareLogits = await fc_wo_pooling.run({
+                l_activations_: new ort.Tensor("float32", squareActivations, [1, 2048])
+            });
+            squareLogits = squareLogits.fc_1.cpuData;
+            const squarePredictions = Array.from(softmax(squareLogits));
+
+            squaresData.push({
+                logits: squareLogits,
+                predictions: squarePredictions,
+            });
+        }
+
+        postMessage({
+            status: "square_results",
+            data: squaresData,
         });
     }
 
@@ -150,6 +123,10 @@ onmessage = async (e) => {
         executionProviders: ["wasm"],
     });
 
+    fc_wo_pooling = await ort.InferenceSession.create("resnet50_imagenet_fc_wo_averagepooling.onnx", {
+        executionProviders: ["wasm"],
+    });
+
     output_weights = await fetch("resnet_output_weights.bin").then((r) =>
         r.arrayBuffer()
     );
@@ -157,49 +134,6 @@ onmessage = async (e) => {
 
     postMessage({ status: "ready" });
 })();
-
-function getMaskedImages(imgTensor, shape) {
-    let maskedImages = [];
-    const width = INPUT_WIDTH / 7;
-    const height = INPUT_HEIGHT / 7;
-
-    for (let i = 0; i < 7; i++) {
-        for (let j = 0; j < 7; j++) {
-            const row = i * height;
-            const col = j * width;
-            const maskedImage = maskImageExceptSquare(imgTensor, row, col, width, height);
-            maskedImages.push(maskedImage);
-        }
-    }
-
-    return maskedImages;
-}
-
-function maskImageExceptSquare(tensor, row, col, width, height) {
-    const [batch, channels, imgHeight, imgWidth] = tensor.dims;
-    const data = tensor.data;
-    const maskedData = new data.constructor(data.length).fill(0);  // Initialize masked data with zeros
-
-    // Loop through each channel and copy only the pixels within the specified square
-    for (let c = 0; c < channels; c++) {
-        for (let i = 0; i < height; i++) {
-            for (let j = 0; j < width; j++) {
-                const imgRow = row + i;
-                const imgCol = col + j;
-
-                // Check if within image bounds (optional safety check)
-                if (imgRow >= 0 && imgRow < imgHeight && imgCol >= 0 && imgCol < imgWidth) {
-                    // Calculate the flat index for the masked tensor and original tensor
-                    const index = ((c * imgHeight + imgRow) * imgWidth) + imgCol;
-                    maskedData[index] = data[index];
-                }
-            }
-        }
-    }
-
-    // Return the masked tensor
-    return new ort.Tensor(tensor.type, maskedData, [1, channels, imgHeight, imgWidth]);
-}
 
 function softmax(arr) {
     return arr.map(function (value, index) {

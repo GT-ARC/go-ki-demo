@@ -538,3 +538,19 @@ body.show-help .overlay {
 .multiple-cameras .overlay .button-group button.overlay-switch-camera {
     display: block;
 }
+
+div.class-display {
+    font-size: 0.75em;
+    font-weight: bold;
+    color: white;
+    text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.8);
+    text-align: center;
+    font-family: Arial, Helvetica, sans-serif;
+    padding-top: 1em;
+}
+
+@media (min-width: 800px) {
+    div.class-display {
+        font-size: 1em;
+    }
+}

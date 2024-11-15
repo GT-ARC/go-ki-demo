@@ -52,6 +52,7 @@ class ModelWorker {
 
     initElements() {
         this.paletteSelect = document.getElementById("palette-select");
+        this.modeSelect = document.getElementById("mode-select");
         this.mainSection = document.getElementById("main-section");
         this.video = document.createElement("video");
         this.predictionList = document.getElementById("prediction-list");
@@ -72,45 +73,12 @@ class ModelWorker {
     }
 
     initEvents() {
-        let $this = this;
+        const $this = this;
 
-        this.predefinedFiles.addEventListener("change", (e) => {
-            const file = e.target.value;
-            if (file) {
-                fetch(file)
-                    .then((response) => response.blob())
-                    .then((blob) => {
-                        const reader = new FileReader();
-                        reader.onload = (e) => {
-                            const img = new Image();
-                            img.onload = () => {
-                                this.width = img.width;
-                                this.height = img.height;
-                                this.min_side = Math.min(img.width, img.height);
-
-                                this.hidden_canvas.width = this.width;
-                                this.hidden_canvas.height = this.height;
-
-                                this.img_canvas.width = this.min_side;
-                                this.img_canvas.height = this.min_side;
-
-                                this.heatmap_canvas.width = this.min_side;
-                                this.heatmap_canvas.height = this.min_side;
-
-                                this.ctx_hidden.drawImage(img, 0, 0);
-                                let imgData = this.ctx_hidden.getImageData(
-                                    0,
-                                    0,
-                                    img.width,
-                                    img.height
-                                );
-                                this._postMessage(imgData);
-                            };
-                            img.src = e.target.result;
-                        };
-                        reader.readAsDataURL(blob);
-                    });
-            }
+        this.predefinedFiles.addEventListener("change", () => {
+            $this._clearSelections();
+            $this._clearSquareResults();
+            $this.load_selected_image();
         });
 
         this.uploadButton.addEventListener("click", () => {
@@ -215,7 +183,6 @@ class ModelWorker {
 
             if (classIdxs.length > 0) {
                 this.clearSelection.disabled = false;
-                console.log(classIdxs);
                 $this.worker.postMessage({
                     status: "class_by_heatmap",
                     classIdxs: classIdxs,
@@ -229,6 +196,21 @@ class ModelWorker {
                 );
             }
         });
+
+        this.modeSelect.onchange = (e) => {
+            this._clearSelections();
+            this._clearSquareResults();
+            if (e.value === "heatmap") {
+                this._postMessage()
+            } else if (e.value === "logits") {
+                // todo: disable square selection
+
+                this.worker.postMessage({
+                    status: "predict_per_square",
+
+                })
+            }
+        }
     }
 
     setSize(width, height) {
@@ -249,6 +231,45 @@ class ModelWorker {
     getImage(img) {
         this.ctx_hidden.drawImage(img, 0, 0);
         return this.ctx_hidden.getImageData(0, 0, this.width, this.height);
+    }
+
+    load_selected_image() {
+        const file = document.getElementById("predefined-files").value;
+        if (file) {
+            fetch(file)
+                .then((response) => response.blob())
+                .then((blob) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            this.width = img.width;
+                            this.height = img.height;
+                            this.min_side = Math.min(img.width, img.height);
+
+                            this.hidden_canvas.width = this.width;
+                            this.hidden_canvas.height = this.height;
+
+                            this.img_canvas.width = this.min_side;
+                            this.img_canvas.height = this.min_side;
+
+                            this.heatmap_canvas.width = this.min_side;
+                            this.heatmap_canvas.height = this.min_side;
+
+                            this.ctx_hidden.drawImage(img, 0, 0);
+                            let imgData = this.ctx_hidden.getImageData(
+                                0,
+                                0,
+                                img.width,
+                                img.height
+                            );
+                            this._postMessage(imgData);
+                        };
+                        img.src = e.target.result;
+                    };
+                    reader.readAsDataURL(blob);
+                });
+        }
     }
 
     async initCamera() {
@@ -347,10 +368,8 @@ class ModelWorker {
             this.mainSection.classList.add("ready");
         }
         if (data.status === "results") {
-            console.log('#crops', data.cropsData.length);
             this.results = data;
             this.updateResults(data.heatmap, data.predictions, data.logits);
-            this.updateSquareResults(data.cropsData);
         }
         if (data.status === "weighted_heatmap") {
             this.updateHeatmap(data.heatmap);
@@ -358,6 +377,10 @@ class ModelWorker {
         if (data.status === "class_by_heatmap") {
             const top_n_idx = argmax_top_n(data.logits, TOP_N, 1.7);
             this._updatePredictionList(top_n_idx, data.predictions, data.logits);
+        }
+
+        if (data.status === "square_results") {
+            this.updateSquareResults(data.data);
         }
     }
 
@@ -401,6 +424,10 @@ class ModelWorker {
             status: "predict",
             tensor: ImageProcessor.toTensor(transformed_img),
         });
+        this.worker.postMessage({
+            status: "predict_per_square",
+            tensor: ImageProcessor.toTensor(transformed_img),
+        });
     }
 
     updateResults(heatmap, predictions, logits) {
@@ -416,26 +443,55 @@ class ModelWorker {
     }
 
     updateSquareResults(data) {
-        data = data.map(square => {
+        const squareData = data.map(square => {
             const { logits, predictions } = square;
             let top_n_idx = argmax_top_n(logits, 1, 0);
 
             const top_logit = logits[top_n_idx[0]];
             const top_prediction = predictions[top_n_idx[0]];
             const top_class = this.imagenet_classes[top_n_idx[0]];
-            console.log(top_n_idx, top_logit, top_prediction, top_class);
 
             return {
-                top_1_idx: top_n_idx,
-                logit: top_logit,
+                class_index: top_n_idx[0],
                 class: top_class,
+                logit: top_logit,
                 probability: top_prediction,
             }
         });
 
-        console.log(data);
+        squareData.forEach((square, i) => {
+            const div = document.querySelector(`div[data-idx='${i}']`);
+            if (div !== null) {
+                div.innerHTML = `${square.logit.toFixed(2)}<br/>${square.class.slice(0, 6)}`;
+                div.classList.add("class-display");
+            } else {
+                addLogMsg('Error: could not find div with data-idx=' + i);
+            }
+        });
 
-        // todo: display on top of each square
+        const topClasses = Object.values(squareData
+            .reduce((acc, obj) => {
+                if (!acc[obj.class_index]) {
+                    acc[obj.class_index] = JSON.parse(JSON.stringify(obj));
+                    acc[obj.class_index].count = 1;
+                } else {
+                    acc[obj.class_index].count++;
+                }
+                return acc;
+            }, {}))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10);
+
+        console.log(topClasses);
+
+        // todo: show top classes on the right with color palette values
+    }
+
+    _clearSquareResults() {
+        for (let div of document.querySelectorAll("#grid div")) {
+            div.innerHTML = "";
+            div.classList.remove("class-display");
+        }
     }
 
     updateHeatmap(data) {
@@ -501,6 +557,10 @@ class ModelWorker {
 //     date.style.setProperty("--mouse-y", `${y}px`);
 //   }
 // });
+
+function load_image_file(filename) {
+    r
+}
 
 let debug_devices = document.getElementById("devices");
 let debug_log = document.getElementById("log");
