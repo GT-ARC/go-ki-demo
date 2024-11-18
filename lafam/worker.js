@@ -15,6 +15,10 @@ let results;
 let activations;
 let output_weights;
 
+// include+exclude groups for imagenet class grouping
+let include_groups;
+let exclude_groups;
+
 
 onmessage = async (e) => {
     const { data } = e;
@@ -113,7 +117,6 @@ onmessage = async (e) => {
     }
 };
 
-// async iife
 (async () => {
     layer4 = await ort.InferenceSession.create("resnet50_imagenet_layer4.onnx", {
         executionProviders: ["wasm"],

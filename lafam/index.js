@@ -10,11 +10,18 @@ function addLogMsg(msg) {
     debug_log.scrollTop = debug_log.scrollHeight;
 }
 
+const debug_devices = document.getElementById("devices");
+const debug_log = document.getElementById("log");
+
 const INPUT_WIDTH = 224;
 const INPUT_HEIGHT = 224;
 const MEAN = [0.485, 0.456, 0.406];
 const STD = [0.229, 0.224, 0.225];
 const TOP_N = 14;
+
+let include_groups;
+let exclude_groups;
+let grouper = null;
 
 class ModelWorker {
     constructor(url) {
@@ -52,7 +59,7 @@ class ModelWorker {
 
     initElements() {
         this.paletteSelect = document.getElementById("palette-select");
-        this.modeSelect = document.getElementById("mode-select");
+        this.showLogits = document.getElementById("btn-show-logits");
         this.mainSection = document.getElementById("main-section");
         this.video = document.createElement("video");
         this.predictionList = document.getElementById("prediction-list");
@@ -92,7 +99,7 @@ class ModelWorker {
                 const img = new Image();
                 img.onload = () => {
                     this.setSize(img.width, img.height);
-                    this._postMessage(this.getImage(img));
+                    this._postMessage("predict", this.getImage(img));
                 };
                 img.src = e.target.result;
             };
@@ -146,10 +153,12 @@ class ModelWorker {
         this.heatmapOpacity.oninput = () => {
             $this.heatmap_canvas.style.opacity = $this.heatmapOpacity.value;
         };
+
         this.paletteSelect.onchange = function () {
             $this.currentPalette = this.value;
             $this.updateHeatmap($this.currentHeatmap);
         };
+
         this.startButton.addEventListener("click", (e) => {
             if ($this.video.paused) {
                 this._clearSelections();
@@ -160,6 +169,15 @@ class ModelWorker {
                 $this.mainSection.classList.add("paused");
             }
         });
+
+        this.showLogits.onclick = (e) => {
+            this._clearSelections();
+            this._clearSquareResults();
+
+            // todo: disable selections
+
+            this.load_selected_image("predict_per_square");
+        }
 
         // root event listener for cells (divs)
         this.heatmapGrid.addEventListener("click", (e) => {
@@ -197,20 +215,6 @@ class ModelWorker {
             }
         });
 
-        this.modeSelect.onchange = (e) => {
-            this._clearSelections();
-            this._clearSquareResults();
-            if (e.value === "heatmap") {
-                this._postMessage()
-            } else if (e.value === "logits") {
-                // todo: disable square selection
-
-                this.worker.postMessage({
-                    status: "predict_per_square",
-
-                })
-            }
-        }
     }
 
     setSize(width, height) {
@@ -233,7 +237,7 @@ class ModelWorker {
         return this.ctx_hidden.getImageData(0, 0, this.width, this.height);
     }
 
-    load_selected_image() {
+    load_selected_image(post_status = "predict") {
         const file = document.getElementById("predefined-files").value;
         if (file) {
             fetch(file)
@@ -263,7 +267,7 @@ class ModelWorker {
                                 img.width,
                                 img.height
                             );
-                            this._postMessage(imgData);
+                            this._postMessage(post_status, imgData);
                         };
                         img.src = e.target.result;
                     };
@@ -356,7 +360,7 @@ class ModelWorker {
         this.heatmap_canvas.width = this.min_side;
         this.heatmap_canvas.height = this.min_side;
 
-        this._postMessage(this.getImage(this.video));
+        this._postMessage("predict", this.getImage(this.video));
     }
 
     _onmessage(e) {
@@ -403,7 +407,7 @@ class ModelWorker {
         this.clearSelection.disabled = true;
     }
 
-    _postMessage(imgData) {
+    _postMessage(status, imgData) {
         const croppedFrame = ImageProcessor.fromImageData(imgData).squareCrop();
 
         this.ctx_img.putImageData(
@@ -421,11 +425,7 @@ class ModelWorker {
             .normalize(MEAN, STD);
 
         this.worker.postMessage({
-            status: "predict",
-            tensor: ImageProcessor.toTensor(transformed_img),
-        });
-        this.worker.postMessage({
-            status: "predict_per_square",
+            status: status,
             tensor: ImageProcessor.toTensor(transformed_img),
         });
     }
@@ -438,53 +438,66 @@ class ModelWorker {
         this._updatePredictionList(top_n_idx, predictions, logits);
 
         if (!this.video.paused) {
-            this._postMessage(this.getImage(this.video));
+            this._postMessage("predict", this.getImage(this.video));
         }
     }
 
     updateSquareResults(data) {
+        if(!grouper) {
+            grouper = new ClassGrouper();
+        }
+
         const squareData = data.map(square => {
             const { logits, predictions } = square;
-            let top_n_idx = argmax_top_n(logits, 1, 0);
-
-            const top_logit = logits[top_n_idx[0]];
-            const top_prediction = predictions[top_n_idx[0]];
-            const top_class = this.imagenet_classes[top_n_idx[0]];
+            const top_index = argmax_top_n(logits, 1, 0)[0];
 
             return {
-                class_index: top_n_idx[0],
-                class: top_class,
-                logit: top_logit,
-                probability: top_prediction,
+                classId: top_index,
+                groupId: grouper.classToGroup(top_index),
+                logit: logits[top_index],
+                probability: predictions[top_index],
             }
         });
 
+        // show logits+classId in square
         squareData.forEach((square, i) => {
             const div = document.querySelector(`div[data-idx='${i}']`);
             if (div !== null) {
-                div.innerHTML = `${square.logit.toFixed(2)}<br/>${square.class.slice(0, 6)}`;
+                const logit = square.logit.toFixed(2);
+                const cls = square.classId;
+                div.innerHTML = `${logit}<br/>${cls}`;
                 div.classList.add("class-display");
             } else {
                 addLogMsg('Error: could not find div with data-idx=' + i);
             }
         });
 
+        // calc and show top classes for the image
         const topClasses = Object.values(squareData
             .reduce((acc, obj) => {
-                if (!acc[obj.class_index]) {
-                    acc[obj.class_index] = JSON.parse(JSON.stringify(obj));
-                    acc[obj.class_index].count = 1;
+                if (!acc[obj.classId]) {
+                    acc[obj.classId] = JSON.parse(JSON.stringify(obj));
+                    acc[obj.classId].count = 1;
                 } else {
-                    acc[obj.class_index].count++;
+                    acc[obj.classId].count++;
                 }
                 return acc;
             }, {}))
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 10);
-
-        console.log(topClasses);
+            .sort((a, b) => b.count - a.count);
 
         // todo: show top classes on the right with color palette values
+        // todo: proper palette
+
+        const heatmap = this.makeClassHeatmap(squareData);
+        this.updateHeatmap(heatmap);
+    }
+
+    makeClassHeatmap(squareData) {
+        const classIds = squareData.map(square => square.classId);
+        const groupIds = classIds.map(classId => grouper.classToGroup(classId));
+        const min = Math.min(...groupIds);
+        const max = Math.max(...groupIds);
+        return groupIds.map(groupId => (groupId - min) / (max - min + 1e-6));
     }
 
     _clearSquareResults() {
@@ -558,13 +571,6 @@ class ModelWorker {
 //   }
 // });
 
-function load_image_file(filename) {
-    r
-}
-
-let debug_devices = document.getElementById("devices");
-let debug_log = document.getElementById("log");
-
 async function init() {
     if ("serviceWorker" in navigator) {
         try {
@@ -574,6 +580,9 @@ async function init() {
             console.log("Service Worker Registration Failed");
         }
     }
+
+    include_groups = await fetch("include_groups.json").then(res => res.json());
+    exclude_groups = await fetch("exclude_groups.json").then(res => res.json());
 
     new ModelWorker("worker.js");
 }
@@ -784,6 +793,52 @@ class ImageProcessor {
             const bottom = valBL + (valBR - valBL) * xWeight;
             output[channel][idxDest] = top + (bottom - top) * yWeight;
         }
+    }
+}
+
+class ClassGrouper {
+    constructor() {
+
+        // todo: needed here?
+        this.includeGroups = {"dog (canid)": [151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275], "fox": [277, 278, 279, 280], "cat": [281, 282, 283, 284, 285], "bird": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102], "fish": [389, 390, 391, 392, 393, 394, 395, 396], "snake": [52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68], "monkey": [365, 366, 367, 368, 369, 370, 371, 372, 373, 374, 375, 376, 377, 378, 379, 380, 381], "bear": [294, 295, 296, 297], "big_cats": [286, 287, 288, 289, 290, 291, 292, 293], "horse": [304, 305, 306], "deer": [301, 302, 303], "rabbit": [330, 331, 332], "squirrel": [335, 336], "cattle": [345, 346, 347], "sheep": [348, 349], "elephant": [386, 387], "bike": [444, 870, 880], "vehicle": [407, 436, 468, 479, 511, 555, 569, 573, 581, 586, 609, 627, 654, 656, 661, 675, 717, 734, 751, 757, 779, 817, 864, 866, 867]};
+        this.excludeGroups = {"furniture": [508, 509, 510, 511, 512, 513, 514, 515, 516, 894], "electronics": [754, 755, 756, 757, 758, 759, 760, 761, 762, 763, 764, 765, 766, 767, 768, 769], "sports_equipment": [701, 702, 703, 704, 705, 706, 707, 708, 709, 710, 711, 712, 713, 714, 715, 716, 717, 718, 719, 720, 721, 722, 723, 724, 725, 726, 727, 728, 729, 730, 731, 732, 733, 734, 735, 736], "containers": [463, 464, 465, 466, 467, 468, 469, 470, 471], "tools": [845, 846, 847, 848, 849, 850, 851, 852, 853, 854, 855, 856, 857, 858, 859, 860, 861, 862, 863, 864, 865], "clothing": [600, 601, 602, 603, 604, 605, 606, 607, 608, 609, 610, 611, 612, 613, 614, 615, 616, 617, 618, 619, 620, 621], "interior_items": [517, 518, 519, 520, 521, 522, 523, 524, 525, 526, 527, 528, 529, 530, 531, 532, 533, 534, 535, 536, 537, 538, 539, 540, 541, 542, 543, 544, 545, 546, 547, 548, 549, 550, 551, 552, 553, 554, 555, 556, 557, 558, 559, 560, 561, 562, 563, 564, 565, 566, 567, 568, 569, 570, 571, 572, 573, 574, 575, 576, 577, 578, 579, 580, 581, 582, 583, 584, 585, 586, 587, 588, 589, 590, 591, 592, 593, 594, 595, 596, 597, 598, 599], "misc": [403, 677, 784, 799, 908, 977]};
+        this.includedClasses = new Set(
+            Object.values(this.includeGroups).flat()
+        );
+        this.excludedClasses = new Set(
+            Object.values(this.excludeGroups).flat()
+        );
+
+        // mapping for group names
+        this._classToGroup = {};
+        for (let [groupName, indices] of Object.entries(this.includeGroups)) {
+            for (let idx of indices) {
+                this._classToGroup[idx] = groupName;
+            }
+        }
+
+        this._groupToId = {};
+        Object.entries(this.includeGroups).forEach(([group, _], groupId) => {
+            this._groupToId[group] = groupId;
+        });
+
+    }
+
+    classToGroup(classId) {
+        if (this.excludedClasses.has(classId)) return -1;
+        const group = this._classToGroup[classId];
+        const groupId = this.getGroupId(group);
+        if (groupId < 0 || groupId === undefined) return -1;
+        return groupId;
+    }
+
+    getGroupId(group) {
+        return this._groupToId[group];
+    }
+
+    getGroupName(groupId) {
+        if (groupId < 0) return '---';
+        return Array.from(Object.keys(this.includeGroups))[groupId];
     }
 }
 

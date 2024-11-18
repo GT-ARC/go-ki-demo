@@ -441,6 +441,25 @@ html {
     cursor: pointer;
     line-height: 1.1;
     outline: none;
+    margin-left: 5px;
+}
+
+#btn-show-logits {
+    display: inline-block;
+    width: auto;
+    padding: 8px 12px 8px 12px;
+    font-size: 16px;
+    border-radius: 5px;
+    border: 2px solid #e58253;
+    background-color: #fff;
+    color: #333;
+    cursor: pointer;
+    line-height: 1.1;
+    margin-left: 5px;
+}
+
+#btn-show-logits:hover {
+    background-color: #ccc;
 }
 
 /* Optionally, add a wrap div for positioning a custom background arrow */

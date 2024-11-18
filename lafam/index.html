@@ -1,4 +1,4 @@
-<html>
+<html lang="en">
 
 <head>
     <meta charset="utf-8">
@@ -119,12 +119,7 @@
 
                         </select>
                     </div>
-                    <div class="select-wrapper">
-                        <select id="mode-select">
-                            <option value="heatmap" selected>Heatmap</option>
-                            <option value="logits">Logits</option>
-                        </select>
-                    </div>
+                    <button type="button" id="btn-show-logits">Show Logits/Group</button>
 
                 </div>
                 <div id="slider-container">
@@ -165,7 +160,7 @@
         <button onclick="updateServiceWorker()">Hard reload</button>
         <h4>Available devices</h4>
         <textarea id="devices" style='width: 100%;' rows='10' disabled></textarea>
-        <h4>Log</h3>
+        <h3>Log</h3>
             <textarea id='log' style='width: 100%;' rows='10' disabled></textarea>
 
 
