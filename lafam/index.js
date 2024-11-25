@@ -23,6 +23,8 @@ let include_groups;
 let exclude_groups;
 let grouper = null;
 
+let selectionEnabled = true;
+
 class ModelWorker {
     constructor(url) {
         let $this = this;
@@ -94,6 +96,7 @@ class ModelWorker {
 
         this.uploadInput.addEventListener("change", (e) => {
             const file = e.target.files[0];
+            console.log('upload file', file)
             const reader = new FileReader();
             reader.onload = (e) => {
                 const img = new Image();
@@ -107,6 +110,7 @@ class ModelWorker {
         });
 
         this.predictionList.addEventListener("click", (event) => {
+            if (!selectionEnabled) return;
             if (!this.video.paused) return;
             const div = event.target.closest(".prediction");
             if (!div) return; // Clicked outside of a prediction div
@@ -155,6 +159,7 @@ class ModelWorker {
         };
 
         this.paletteSelect.onchange = function () {
+            if (!selectionEnabled) return;
             $this.currentPalette = this.value;
             $this.updateHeatmap($this.currentHeatmap);
         };
@@ -215,6 +220,7 @@ class ModelWorker {
             }
         });
 
+        selectionEnabled = false;
     }
 
     setSize(width, height) {
@@ -465,7 +471,8 @@ class ModelWorker {
             if (div !== null) {
                 const logit = square.logit.toFixed(2);
                 const cls = square.classId;
-                div.innerHTML = `${logit}<br/>${cls}`;
+                const group = square.groupId;
+                div.innerHTML = `${logit}<br/>${cls}, ${group}`;
                 div.classList.add("class-display");
             } else {
                 addLogMsg('Error: could not find div with data-idx=' + i);
@@ -489,7 +496,12 @@ class ModelWorker {
         // todo: proper palette
 
         const heatmap = this.makeClassHeatmap(squareData);
-        this.updateHeatmap(heatmap);
+        this.updateHeatmap(heatmap, "rainbow");
+
+        const groupGrid2d = to2DArray(squareData.map(square => square.groupId), 7, 7);
+        const areas = findAreas(groupGrid2d, [-1]).filter(area => area.length > 1);
+        const boundingBoxes = findBoundingBoxes(areas);
+        drawBoundingBoxes(boundingBoxes, 'heatmap-canvas');
     }
 
     makeClassHeatmap(squareData) {
@@ -505,12 +517,14 @@ class ModelWorker {
             div.innerHTML = "";
             div.classList.remove("class-display");
         }
+        selectionEnabled = true;
     }
 
-    updateHeatmap(data) {
+    updateHeatmap(data, palette = null) {
         this.currentHeatmap = data;
 
-        let heatmap = mapToPalette(data, this.palettes[this.currentPalette]);
+        palette = palette === null ? this.currentPalette : palette;
+        let heatmap = mapToPalette(data, this.palettes[palette]);
         heatmap = new ImageProcessor(heatmap, 7, 7).resize(
             this.min_side,
             this.min_side,

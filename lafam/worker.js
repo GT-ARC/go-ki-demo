@@ -58,7 +58,7 @@ onmessage = async (e) => {
             let squareActivations = new Float32Array(2048).fill(0);
 
             for (let layerId = 0; layerId < 2048; layerId++) {
-                squareActivations[layerId] = activations[layerId * 7 * 7 + squareId];
+                squareActivations[layerId] = activations[layerId * 7 * 7 + squareId] / 49;
             }
 
             let squareLogits = await fc_wo_pooling.run({
