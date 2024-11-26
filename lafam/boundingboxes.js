@@ -48,18 +48,6 @@ function findAreas(grid, skipNumbers = []) {
     return areas;
 }
 
-// Example usage
-const grid = [
-    [1, 1, 0, 0],
-    [1, 0, 0, 1],
-    [0, 0, 1, 1],
-    [0, 1, 1, 1]
-];
-const skipNumbers = [0]; // Skip areas with 0
-
-const areas = findAreas(grid, skipNumbers);
-console.log("Areas:", areas);
-
 function findBoundingBoxes(areas) {
     return areas.map(area => {
         let minRow = Infinity, maxRow = -Infinity;
@@ -87,28 +75,33 @@ function drawBoundingBoxes(boundingBoxes, canvasId) {
     const minSide = Math.min(canvas.width, canvas.height);
 
     const cellSize = minSide / 7; // Size of each grid cell in pixels
-    const borderThickness = 11; // Border thickness of the rectangle
-
-    console.log(canvas.width, canvas.height);
+    const borderThickness = Math.round(Math.max(5, Math.min(11, cellSize / 16)));
 
     // Set the stroke style
-    ctx.strokeStyle = "red"; // Color of the rectangle border
+    ctx.strokeStyle = "#ff8800"; // Color of the rectangle border
     ctx.lineWidth = borderThickness; // Thickness of the rectangle border
 
     // Draw each bounding box
-    boundingBoxes.forEach(box => {
+    boundingBoxes.forEach((box, boxId) => {
         const [topRow, leftCol] = box.topLeft;
         const [bottomRow, rightCol] = box.bottomRight;
 
+        // give each box a slight offset such that the boxes' edges dont overlap 100%
+        const offset = 5 + Math.floor(5 * Math.random());
+
         // Calculate rectangle dimensions
-        const x = Math.round(leftCol * cellSize); // x-coordinate (column)
-        const y = Math.round(topRow * cellSize); // y-coordinate (row)
-        const width = Math.round((rightCol - leftCol + 1) * cellSize); // Width in pixels
-        const height = Math.round((bottomRow - topRow + 1) * cellSize); // Height in pixels
+        const x = Math.round(leftCol * cellSize) - offset; // x-coordinate (column)
+        const y = Math.round(topRow * cellSize) - offset; // y-coordinate (row)
+        const width = Math.round((rightCol - leftCol + 1) * cellSize) + offset; // Width in pixels
+        const height = Math.round((bottomRow - topRow + 1) * cellSize) + offset; // Height in pixels
 
         // Draw the rectangle
         ctx.strokeRect(x, y, width, height);
     });
+}
+
+function adjustBoundingBoxPosition(x, y, width, height, adjust) {
+    return [x - adjust, y - adjust, width + adjust, height + adjust];
 }
 
 function to2DArray(array, rows, cols) {

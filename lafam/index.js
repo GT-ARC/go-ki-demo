@@ -40,6 +40,7 @@ class ModelWorker {
 
         this.initElements();
         this.initEvents();
+        this._clearSquareResults();
 
         fetch("./imagenet_class_index.json")
             .then((response) => response.json())
@@ -179,13 +180,13 @@ class ModelWorker {
             this._clearSelections();
             this._clearSquareResults();
 
-            // todo: disable selections
-
             this.load_selected_image("predict_per_square");
         }
 
         // root event listener for cells (divs)
         this.heatmapGrid.addEventListener("click", (e) => {
+            if (!selectionEnabled) return;
+
             const div = e.target.closest("div");
             if (!div) return;
 
@@ -453,6 +454,12 @@ class ModelWorker {
             grouper = new ClassGrouper();
         }
 
+        // disable selection
+        for (let div of document.querySelectorAll("#grid div")) {
+            div.classList.remove("grid-selection");
+        }
+        selectionEnabled = false;
+
         const squareData = data.map(square => {
             const { logits, predictions } = square;
             const top_index = argmax_top_n(logits, 1, 0)[0];
@@ -496,7 +503,7 @@ class ModelWorker {
         // todo: proper palette
 
         const heatmap = this.makeClassHeatmap(squareData);
-        this.updateHeatmap(heatmap, "rainbow");
+        this.setClassHeatmap(heatmap);
 
         const groupGrid2d = to2DArray(squareData.map(square => square.groupId), 7, 7);
         const areas = findAreas(groupGrid2d, [-1]).filter(area => area.length > 1);
@@ -516,8 +523,31 @@ class ModelWorker {
         for (let div of document.querySelectorAll("#grid div")) {
             div.innerHTML = "";
             div.classList.remove("class-display");
+            div.classList.add("grid-selection");
         }
         selectionEnabled = true;
+    }
+
+    setClassHeatmap(data) {
+        this.currentHeatmap = data;
+
+        const hueBase = Math.floor(360 * Math.random());
+        let heatmap = mapToHSL(data, hueBase);
+        heatmap = new ImageProcessor(heatmap, 7, 7).resize(
+            this.min_side,
+            this.min_side,
+            "nearest"
+        );
+
+        this.ctx_heatmap.putImageData(
+            new ImageData(
+                ImageProcessor.toImageData(heatmap),
+                this.min_side,
+                this.min_side
+            ),
+            0,
+            0
+        );
     }
 
     updateHeatmap(data, palette = null) {
@@ -601,6 +631,25 @@ async function init() {
     new ModelWorker("worker.js");
 }
 
+function mapToHSL(x, hueBase = 0) {
+    let heatmap = [
+        new Float32Array(x.length),
+        new Float32Array(x.length),
+        new Float32Array(x.length),
+    ];
+    for (let i = 0; i < x.length; i++) {
+        const hue = (hueBase + 300 * x[i]) % 360 // 360 * x[i]; // degrees
+        const saturation = 100; // %
+        const lightness = 50; // %
+        const [r, g, b] = hslToRgb(hue, saturation, lightness);
+
+        heatmap[0][i] = r;
+        heatmap[1][i] = g;
+        heatmap[2][i] = b;
+    }
+    return heatmap;
+}
+
 function mapToPalette(x, palette) {
     let heatmap = [
         new Float32Array(x.length),
@@ -614,6 +663,52 @@ function mapToPalette(x, palette) {
         heatmap[2][i] = color[2];
     }
     return heatmap;
+}
+
+function hslToRgb(h, s, l) {
+    // Normalize the H, S, L values
+    s /= 100;
+    l /= 100;
+
+    const C = (1 - Math.abs(2 * l - 1)) * s; // Chroma
+    const X = C * (1 - Math.abs((h / 60) % 2 - 1)); // Secondary component
+    const m = l - C / 2; // Adjustment factor
+
+    let rPrime, gPrime, bPrime;
+
+    // Determine RGB prime values based on the hue angle
+    if (h >= 0 && h < 60) {
+        rPrime = C;
+        gPrime = X;
+        bPrime = 0;
+    } else if (h >= 60 && h < 120) {
+        rPrime = X;
+        gPrime = C;
+        bPrime = 0;
+    } else if (h >= 120 && h < 180) {
+        rPrime = 0;
+        gPrime = C;
+        bPrime = X;
+    } else if (h >= 180 && h < 240) {
+        rPrime = 0;
+        gPrime = X;
+        bPrime = C;
+    } else if (h >= 240 && h < 300) {
+        rPrime = X;
+        gPrime = 0;
+        bPrime = C;
+    } else {
+        rPrime = C;
+        gPrime = 0;
+        bPrime = X;
+    }
+
+    // Convert RGB prime values to RGB values and adjust by m
+    const r = Math.round((rPrime + m) * 255);
+    const g = Math.round((gPrime + m) * 255);
+    const b = Math.round((bPrime + m) * 255);
+
+    return [r, g, b];
 }
 
 class ImageProcessor {
