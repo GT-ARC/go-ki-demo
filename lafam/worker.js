@@ -14,10 +14,7 @@ let fc_wo_pooling; // fc without average-pooling
 let results;
 let activations;
 let output_weights;
-
-// include+exclude groups for imagenet class grouping
-let include_groups;
-let exclude_groups;
+let iDontKnow;
 
 
 onmessage = async (e) => {
@@ -52,7 +49,7 @@ onmessage = async (e) => {
     }
 
     if (data.status === "predict_squares_for_groupmap") {
-        const squaresData = await predict_per_square();
+        const squaresData = await predict_per_square(data.tensor);
         postMessage({
             status: "square_results_for_groupmap",
             data: squaresData,
@@ -60,7 +57,7 @@ onmessage = async (e) => {
     }
 
     if (data.status === "predict_squares_for_bounding_boxes") {
-        const squaresData = await predict_per_square();
+        const squaresData = await predict_per_square(data.tensor);
         postMessage({
             status: "square_results_for_bounding_boxes",
             data: squaresData,
@@ -118,6 +115,10 @@ onmessage = async (e) => {
         executionProviders: ["wasm"],
     });
 
+    iDontKnow = await ort.InferenceSession.create("resnet_masking_1x1_3x3.onnx", {
+        executionProviders: ["wasm"],
+    });
+
     output_weights = await fetch("resnet_output_weights.bin").then((r) =>
         r.arrayBuffer()
     );
@@ -126,29 +127,13 @@ onmessage = async (e) => {
     postMessage({ status: "ready" });
 })();
 
-async function predict_per_square() {
-    let squaresData = [];
-
-    for (let squareId = 0; squareId < 49; squareId++) {
-        let squareActivations = new Float32Array(2048).fill(0);
-
-        for (let layerId = 0; layerId < 2048; layerId++) {
-            squareActivations[layerId] = activations[layerId * 7 * 7 + squareId] / 49;
-        }
-
-        let squareLogits = await fc_wo_pooling.run({
-            l_activations_: new ort.Tensor("float32", squareActivations, [1, 2048])
-        });
-        squareLogits = squareLogits.fc_1.cpuData;
-        const squarePredictions = Array.from(softmax(squareLogits));
-
-        squaresData.push({
-            logits: squareLogits,
-            predictions: squarePredictions,
-        });
-    }
-
-    return squaresData;
+async function predict_per_square(tensor = null) {
+    const imgDataTensor = new ort.Tensor("float32", tensor, [1, 3, INPUT_HEIGHT, INPUT_WIDTH,]);
+    const results = await iDontKnow.run({l_x_: imgDataTensor});
+    return {
+        logits: results.max_1.cpuData,
+        classIds: results.max_1_1.cpuData
+    };
 }
 
 function softmax(arr) {

@@ -23,7 +23,7 @@ let include_groups;
 let exclude_groups;
 let grouper = null;
 
-let selectionEnabled = true;
+let selectionEnabled = false;
 
 let theImage = null;
 let theSquareData = null;
@@ -126,7 +126,7 @@ class ModelWorker {
             if (!selectionEnabled) return;
             if (!this.video.paused) return;
             const div = event.target.closest(".prediction");
-            if (!div) return; // Clicked outside of a prediction div
+            if (!div) return; // Clicked outside a prediction div
 
             let selectedIdxs = [];
             if (!div.classList.contains("selected")) {
@@ -190,7 +190,6 @@ class ModelWorker {
         });
 
         this.showLogits.onclick = (e) => {
-            console.log('showLogits onclick', theImage);
             if (theImage === null) return;
             theSquareData = null;
             this._clearSelections();
@@ -210,6 +209,7 @@ class ModelWorker {
             if (theSquareData === null) {
                 this._postMessage("predict_squares_for_bounding_boxes", theImage);
             } else {
+                this._updateGroupList();
                 this.updateBoundingBoxes();
             }
         }
@@ -300,6 +300,7 @@ class ModelWorker {
 
                             let imgData = this.getImage(img);
                             theImage = imgData;
+                            selectionEnabled = true;
 
                             this._postMessage(post_status, imgData);
                         };
@@ -421,7 +422,8 @@ class ModelWorker {
 
         if (data.status === "square_results_for_groupmap") {
             theSquareData = this.preprocessSquareResults(data.data);
-            this.updateGroupMap(data.data);
+            this.updateGroupMap();
+            this._updateGroupList();
         }
 
         if (data.status === "square_results_for_bounding_boxes") {
@@ -465,10 +467,11 @@ class ModelWorker {
         const transformed_img = croppedFrame
             .resize(INPUT_WIDTH, INPUT_HEIGHT, "bilinear")
             .normalize(MEAN, STD);
+        const tensor = ImageProcessor.toTensor(transformed_img);
 
         this.worker.postMessage({
             status: status,
-            tensor: ImageProcessor.toTensor(transformed_img),
+            tensor: tensor,
         });
     }
 
@@ -526,7 +529,7 @@ class ModelWorker {
         if (theSquareData === null) return;
         this.disableOpacitySlider();
         const groupGrid2d = to2DArray(theSquareData.map(square => square.groupId), 7, 7);
-        const areas = findAreas(groupGrid2d, [-1]).filter(area => area.length > 1);
+        const areas = findAreas(groupGrid2d, [-1]);
         const boundingBoxes = findBoundingBoxes(areas);
         drawBoundingBoxes(boundingBoxes, 'heatmap-canvas');
     }
@@ -535,17 +538,15 @@ class ModelWorker {
         if(!grouper) {
             grouper = new ClassGrouper();
         }
-
-        return data.map(square => {
-            const {logits, predictions} = square;
-            const top_index = argmax_top_n(logits, 1, 0)[0];
-            return {
-                classId: top_index,
-                groupId: grouper.classToGroup(top_index),
-                logit: logits[top_index],
-                probability: predictions[top_index],
-            };
-        });
+        let squareData = [];
+        for (let i = 0; i < 49; i++) {
+            squareData.push({
+                logit: parseFloat(data.logits[i]),
+                classId: parseInt(data.classIds[i]),
+                groupId: grouper.classToGroup(parseInt(data.classIds[i])),
+            });
+        }
+        return squareData;
     }
 
     makeClassHeatmap(squareData) {
@@ -646,6 +647,25 @@ class ModelWorker {
         this.predictionList.appendChild(fragment);
     }
 
+    // reuse prediction list div
+    _updateGroupList() {
+        if (theSquareData === null) return;
+        this.predictionList.innerHTML = "";
+        let addedGroups = {};
+        theSquareData
+            .toSorted((a, b) => a.groupId - b.groupId)
+            .filter(square => square.groupId >= 0)
+            .forEach(square => {
+            if (!addedGroups[square.groupId]) {
+                const div = document.createElement("div");
+                div.style.padding = "10px";
+                div.style.fontWeight = "bold";
+                div.innerText = `${square.groupId}: ${grouper.getGroupName(square.groupId)}`;
+                this.predictionList.appendChild(div);
+                addedGroups[square.groupId] = true;
+            }
+        });
+    }
 
     disableOpacitySlider(value = 1.0) {
         this.heatmapOpacity.value = value;

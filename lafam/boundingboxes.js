@@ -14,7 +14,7 @@ function findAreas(grid, skipNumbers = []) {
 
     // Perform a DFS to find all connected cells with the same number
     function dfs(r, c, number, area) {
-        area.push([r, c]);
+        area.squares.push([r, c]);
         visited[r][c] = true;
 
         for (const [dr, dc] of directions) {
@@ -36,7 +36,7 @@ function findAreas(grid, skipNumbers = []) {
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
             if (!visited[r][c] && !skipSet.has(grid[r][c])) {
-                const area = [];
+                const area = { groupId: grid[r][c], squares: [] };
                 dfs(r, c, grid[r][c], area);
                 areas.push(area);
             } else {
@@ -45,8 +45,7 @@ function findAreas(grid, skipNumbers = []) {
         }
     }
 
-    console.log(areas);
-    return areas;
+    return areas.filter(area => area.squares.length > 1);
 }
 
 function findBoundingBoxes(areas) {
@@ -55,7 +54,7 @@ function findBoundingBoxes(areas) {
         let minCol = Infinity, maxCol = -Infinity;
 
         // Iterate over all the points in the area to find the bounds
-        for (const [row, col] of area) {
+        for (const [row, col] of area.squares) {
             minRow = Math.min(minRow, row);
             maxRow = Math.max(maxRow, row);
             minCol = Math.min(minCol, col);
@@ -64,6 +63,7 @@ function findBoundingBoxes(areas) {
 
         // Return the bounding box as [top-left, bottom-right]
         return {
+            groupId: area.groupId,
             topLeft: [minRow, minCol],
             bottomRight: [maxRow, maxCol]
         };
@@ -105,6 +105,20 @@ function drawBoundingBox(box, canvasId, color = '#ff0000') {
 
     // Draw the rectangle
     ctx.strokeRect(x, y, width, height);
+
+    // Draw group name
+    const groupName = grouper.getGroupName(box.groupId);
+    const fontSize = Math.max(16, minSide / 25);
+    const textX = x + borderThickness / 2 + 2;
+    const textY = y + borderThickness / 2 + 2;
+    const maxWidth = width - borderThickness - 4;
+    ctx.textBaseline = "top";
+    ctx.font = `bold ${fontSize}px Arial`;
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = 3;
+    ctx.fillStyle = color;
+    ctx.strokeText(groupName, textX, textY, maxWidth);
+    ctx.fillText(groupName, textX, textY, maxWidth);
 }
 
 function to2DArray(array, rows, cols) {
