@@ -458,7 +458,7 @@ html {
     margin-left: 5px;
 }
 
-#btn-show-logits {
+button.lafam-btn {
     display: inline-block;
     width: auto;
     padding: 8px 12px 8px 12px;
@@ -472,7 +472,7 @@ html {
     margin-left: 5px;
 }
 
-#btn-show-logits:hover {
+button.lafam-btn:hover {
     background-color: #ccc;
 }
 

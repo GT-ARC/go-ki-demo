@@ -25,6 +25,9 @@ let grouper = null;
 
 let selectionEnabled = true;
 
+let theImage = null;
+let theSquareData = null;
+
 class ModelWorker {
     constructor(url) {
         let $this = this;
@@ -63,6 +66,7 @@ class ModelWorker {
     initElements() {
         this.paletteSelect = document.getElementById("palette-select");
         this.showLogits = document.getElementById("btn-show-logits");
+        this.showBBoxes = document.getElementById("btn-show-bboxes");
         this.mainSection = document.getElementById("main-section");
         this.video = document.createElement("video");
         this.predictionList = document.getElementById("prediction-list");
@@ -88,6 +92,7 @@ class ModelWorker {
         this.predefinedFiles.addEventListener("change", () => {
             $this._clearSelections();
             $this._clearSquareResults();
+            theSquareData = null;
             $this.load_selected_image();
         });
 
@@ -96,6 +101,10 @@ class ModelWorker {
         });
 
         this.uploadInput.addEventListener("change", (e) => {
+            $this._clearSelections();
+            $this._clearSquareResults();
+            theSquareData = null;
+
             const file = e.target.files[0];
             console.log('upload file', file)
             const reader = new FileReader();
@@ -103,7 +112,10 @@ class ModelWorker {
                 const img = new Image();
                 img.onload = () => {
                     this.setSize(img.width, img.height);
-                    this._postMessage("predict", this.getImage(img));
+                    const imageData = this.getImage(img);
+                    theImage = imageData;
+
+                    this._postMessage("predict", imageData);
                 };
                 img.src = e.target.result;
             };
@@ -167,6 +179,7 @@ class ModelWorker {
 
         this.startButton.addEventListener("click", (e) => {
             if ($this.video.paused) {
+                theSquareData = null;
                 this._clearSelections();
                 $this.video.play();
                 $this.mainSection.classList.remove("paused");
@@ -177,10 +190,28 @@ class ModelWorker {
         });
 
         this.showLogits.onclick = (e) => {
+            console.log('showLogits onclick', theImage);
+            if (theImage === null) return;
+            theSquareData = null;
             this._clearSelections();
             this._clearSquareResults();
+            this._clearHeatmap();
+            disableSelection();
+            this._postMessage("predict_squares_for_groupmap", theImage);
+        }
 
-            this.load_selected_image("predict_per_square");
+        this.showBBoxes.onclick = (e) => {
+            if (theImage === null) return;
+            this._clearSelections();
+            this._clearSquareResults();
+            this._clearHeatmap();
+            disableSelection();
+
+            if (theSquareData === null) {
+                this._postMessage("predict_squares_for_bounding_boxes", theImage);
+            } else {
+                this.updateBoundingBoxes();
+            }
         }
 
         // root event listener for cells (divs)
@@ -267,13 +298,9 @@ class ModelWorker {
                             this.heatmap_canvas.width = this.min_side;
                             this.heatmap_canvas.height = this.min_side;
 
-                            this.ctx_hidden.drawImage(img, 0, 0);
-                            let imgData = this.ctx_hidden.getImageData(
-                                0,
-                                0,
-                                img.width,
-                                img.height
-                            );
+                            let imgData = this.getImage(img);
+                            theImage = imgData;
+
                             this._postMessage(post_status, imgData);
                         };
                         img.src = e.target.result;
@@ -367,7 +394,9 @@ class ModelWorker {
         this.heatmap_canvas.width = this.min_side;
         this.heatmap_canvas.height = this.min_side;
 
-        this._postMessage("predict", this.getImage(this.video));
+        theSquareData = null;
+        const imageData = this.getImage(this.video);
+        this._postMessage("predict", imageData);
     }
 
     _onmessage(e) {
@@ -390,8 +419,14 @@ class ModelWorker {
             this._updatePredictionList(top_n_idx, data.predictions, data.logits);
         }
 
-        if (data.status === "square_results") {
-            this.updateSquareResults(data.data);
+        if (data.status === "square_results_for_groupmap") {
+            theSquareData = this.preprocessSquareResults(data.data);
+            this.updateGroupMap(data.data);
+        }
+
+        if (data.status === "square_results_for_bounding_boxes") {
+            theSquareData = this.preprocessSquareResults(data.data);
+            this.updateBoundingBoxes()
         }
     }
 
@@ -438,6 +473,7 @@ class ModelWorker {
     }
 
     updateResults(heatmap, predictions, logits) {
+        this.enableOpacitySlider();
         this.updateHeatmap(heatmap);
 
         let top_n_idx = argmax_top_n(logits, TOP_N, 1.7);
@@ -449,31 +485,11 @@ class ModelWorker {
         }
     }
 
-    updateSquareResults(data) {
-        if(!grouper) {
-            grouper = new ClassGrouper();
-        }
-
-        // disable selection
-        for (let div of document.querySelectorAll("#grid div")) {
-            div.classList.remove("grid-selection");
-        }
-        selectionEnabled = false;
-
-        const squareData = data.map(square => {
-            const { logits, predictions } = square;
-            const top_index = argmax_top_n(logits, 1, 0)[0];
-
-            return {
-                classId: top_index,
-                groupId: grouper.classToGroup(top_index),
-                logit: logits[top_index],
-                probability: predictions[top_index],
-            }
-        });
+    updateGroupMap() {
+        this.enableOpacitySlider();
 
         // show logits+classId in square
-        squareData.forEach((square, i) => {
+        theSquareData.forEach((square, i) => {
             const div = document.querySelector(`div[data-idx='${i}']`);
             if (div !== null) {
                 const logit = square.logit.toFixed(2);
@@ -487,7 +503,7 @@ class ModelWorker {
         });
 
         // calc and show top classes for the image
-        const topClasses = Object.values(squareData
+        const topClasses = Object.values(theSquareData
             .reduce((acc, obj) => {
                 if (!acc[obj.classId]) {
                     acc[obj.classId] = JSON.parse(JSON.stringify(obj));
@@ -502,13 +518,34 @@ class ModelWorker {
         // todo: show top classes on the right with color palette values
         // todo: proper palette
 
-        const heatmap = this.makeClassHeatmap(squareData);
+        const heatmap = this.makeClassHeatmap(theSquareData);
         this.setClassHeatmap(heatmap);
+    }
 
-        const groupGrid2d = to2DArray(squareData.map(square => square.groupId), 7, 7);
+    updateBoundingBoxes() {
+        if (theSquareData === null) return;
+        this.disableOpacitySlider();
+        const groupGrid2d = to2DArray(theSquareData.map(square => square.groupId), 7, 7);
         const areas = findAreas(groupGrid2d, [-1]).filter(area => area.length > 1);
         const boundingBoxes = findBoundingBoxes(areas);
         drawBoundingBoxes(boundingBoxes, 'heatmap-canvas');
+    }
+
+    preprocessSquareResults(data) {
+        if(!grouper) {
+            grouper = new ClassGrouper();
+        }
+
+        return data.map(square => {
+            const {logits, predictions} = square;
+            const top_index = argmax_top_n(logits, 1, 0)[0];
+            return {
+                classId: top_index,
+                groupId: grouper.classToGroup(top_index),
+                logit: logits[top_index],
+                probability: predictions[top_index],
+            };
+        });
     }
 
     makeClassHeatmap(squareData) {
@@ -528,10 +565,16 @@ class ModelWorker {
         selectionEnabled = true;
     }
 
+    _clearHeatmap() {
+        const canvas = this.heatmap_canvas;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
     setClassHeatmap(data) {
         this.currentHeatmap = data;
 
-        const hueBase = Math.floor(360 * Math.random());
+        const hueBase = 20; // Math.floor(360 * Math.random());
         let heatmap = mapToHSL(data, hueBase);
         heatmap = new ImageProcessor(heatmap, 7, 7).resize(
             this.min_side,
@@ -602,6 +645,20 @@ class ModelWorker {
 
         this.predictionList.appendChild(fragment);
     }
+
+
+    disableOpacitySlider(value = 1.0) {
+        this.heatmapOpacity.value = value;
+        this.heatmap_canvas.style.opacity = this.heatmapOpacity.value;
+        this.heatmapOpacity.disabled = true;
+    }
+
+    enableOpacitySlider(value = 0.5) {
+        this.heatmapOpacity.value = value;
+        this.heatmap_canvas.style.opacity = this.heatmapOpacity.value;
+        this.heatmapOpacity.disabled = false;
+    }
+
 }
 
 // document.getElementById("grid").addEventListener("mousemove", (e) => {
@@ -614,6 +671,20 @@ class ModelWorker {
 //     date.style.setProperty("--mouse-y", `${y}px`);
 //   }
 // });
+
+function disableSelection() {
+    for (let div of document.querySelectorAll("#grid div")) {
+        div.classList.remove("grid-selection");
+    }
+    selectionEnabled = false;
+}
+
+function enableSelection() {
+    for (let div of document.querySelectorAll("#grid div")) {
+        div.classList.add("grid-selection");
+    }
+    selectionEnabled = true;
+}
 
 async function init() {
     if ("serviceWorker" in navigator) {

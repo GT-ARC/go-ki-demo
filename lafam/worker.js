@@ -51,30 +51,18 @@ onmessage = async (e) => {
         });
     }
 
-    if (data.status === "predict_per_square") {
-        let squaresData = [];
-
-        for (let squareId = 0; squareId < 49; squareId++) {
-            let squareActivations = new Float32Array(2048).fill(0);
-
-            for (let layerId = 0; layerId < 2048; layerId++) {
-                squareActivations[layerId] = activations[layerId * 7 * 7 + squareId] / 49;
-            }
-
-            let squareLogits = await fc_wo_pooling.run({
-                l_activations_: new ort.Tensor("float32", squareActivations, [1, 2048])
-            });
-            squareLogits = squareLogits.fc_1.cpuData;
-            const squarePredictions = Array.from(softmax(squareLogits));
-
-            squaresData.push({
-                logits: squareLogits,
-                predictions: squarePredictions,
-            });
-        }
-
+    if (data.status === "predict_squares_for_groupmap") {
+        const squaresData = await predict_per_square();
         postMessage({
-            status: "square_results",
+            status: "square_results_for_groupmap",
+            data: squaresData,
+        });
+    }
+
+    if (data.status === "predict_squares_for_bounding_boxes") {
+        const squaresData = await predict_per_square();
+        postMessage({
+            status: "square_results_for_bounding_boxes",
             data: squaresData,
         });
     }
@@ -137,6 +125,31 @@ onmessage = async (e) => {
 
     postMessage({ status: "ready" });
 })();
+
+async function predict_per_square() {
+    let squaresData = [];
+
+    for (let squareId = 0; squareId < 49; squareId++) {
+        let squareActivations = new Float32Array(2048).fill(0);
+
+        for (let layerId = 0; layerId < 2048; layerId++) {
+            squareActivations[layerId] = activations[layerId * 7 * 7 + squareId] / 49;
+        }
+
+        let squareLogits = await fc_wo_pooling.run({
+            l_activations_: new ort.Tensor("float32", squareActivations, [1, 2048])
+        });
+        squareLogits = squareLogits.fc_1.cpuData;
+        const squarePredictions = Array.from(softmax(squareLogits));
+
+        squaresData.push({
+            logits: squareLogits,
+            predictions: squarePredictions,
+        });
+    }
+
+    return squaresData;
+}
 
 function softmax(arr) {
     return arr.map(function (value, index) {
