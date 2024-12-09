@@ -440,7 +440,7 @@ html {
     }
 }
 
-#palette-select {
+select.lafam-select {
     display: inline-block;
     width: auto;
     padding: 8px 30px 8px 12px;

@@ -19,8 +19,8 @@ const MEAN = [0.485, 0.456, 0.406];
 const STD = [0.229, 0.224, 0.225];
 const TOP_N = 14;
 
-let include_groups;
-let exclude_groups;
+let include_groups = null;
+let exclude_groups = null;
 let grouper = null;
 
 let selectionEnabled = false;
@@ -61,12 +61,21 @@ class ModelWorker {
                     $this.paletteSelect.appendChild(option);
                 }
             });
+
+        fetch("exclude_groups.json")
+            .then(response => response.json())
+            .then(data => exclude_groups = data);
+
+        fetch("include_groups.json")
+            .then(response => response.json())
+            .then(data => include_groups = data);
     }
 
     initElements() {
         this.paletteSelect = document.getElementById("palette-select");
-        this.showLogits = document.getElementById("btn-show-logits");
-        this.showBBoxes = document.getElementById("btn-show-bboxes");
+        // this.showLogits = document.getElementById("btn-show-logits");
+        // this.showBBoxes = document.getElementById("btn-show-bboxes");
+        this.modeSelect = document.getElementById("mode-select");
         this.mainSection = document.getElementById("main-section");
         this.video = document.createElement("video");
         this.predictionList = document.getElementById("prediction-list");
@@ -93,6 +102,7 @@ class ModelWorker {
             $this._clearSelections();
             $this._clearSquareResults();
             theSquareData = null;
+            this.modeSelect.value = 'predict';
             $this.load_selected_image();
         });
 
@@ -104,6 +114,7 @@ class ModelWorker {
             $this._clearSelections();
             $this._clearSquareResults();
             theSquareData = null;
+            this.modeSelect.value = 'predict';
 
             const file = e.target.files[0];
             console.log('upload file', file)
@@ -178,8 +189,8 @@ class ModelWorker {
         };
 
         this.startButton.addEventListener("click", (e) => {
+            theSquareData = null;
             if ($this.video.paused) {
-                theSquareData = null;
                 this._clearSelections();
                 $this.video.play();
                 $this.mainSection.classList.remove("paused");
@@ -189,30 +200,18 @@ class ModelWorker {
             }
         });
 
-        this.showLogits.onclick = (e) => {
-            if (theImage === null) return;
-            theSquareData = null;
-            this._clearSelections();
-            this._clearSquareResults();
-            this._clearHeatmap();
-            disableSelection();
-            this._postMessage("predict_squares_for_groupmap", theImage);
-        }
-
-        this.showBBoxes.onclick = (e) => {
-            if (theImage === null) return;
-            this._clearSelections();
-            this._clearSquareResults();
-            this._clearHeatmap();
-            disableSelection();
-
-            if (theSquareData === null) {
-                this._postMessage("predict_squares_for_bounding_boxes", theImage);
+        this.modeSelect.addEventListener("change", (e) => {
+            const value = this.modeSelect.value;
+            if (value === 'predict') {
+                this._postMessage('predict', theImage);
+            } else if (value === 'show_logits') {
+                this.showLogits();
+            } else if (value === 'show_bounding_boxes') {
+                this.showBoundingBoxes();
             } else {
-                this._updateGroupList();
-                this.updateBoundingBoxes();
+                console.error('Invalid mode-select value: ', value);
             }
-        }
+        });
 
         // root event listener for cells (divs)
         this.heatmapGrid.addEventListener("click", (e) => {
@@ -423,7 +422,7 @@ class ModelWorker {
         if (data.status === "square_results_for_groupmap") {
             theSquareData = this.preprocessSquareResults(data.data);
             this.updateGroupMap();
-            this._updateGroupList();
+            this.updateGroupList();
         }
 
         if (data.status === "square_results_for_bounding_boxes") {
@@ -485,6 +484,36 @@ class ModelWorker {
 
         if (!this.video.paused) {
             this._postMessage("predict", this.getImage(this.video));
+        }
+    }
+
+    showLogits() {
+        if (theImage === null) return;
+        this._clearSelections();
+        this._clearSquareResults();
+        this._clearHeatmap();
+        disableSelection();
+
+        if (theSquareData === null) {
+            this._postMessage("predict_squares_for_groupmap", theImage);
+        } else {
+            this.updateGroupList();
+            this.updateGroupMap();
+        }
+    }
+
+    showBoundingBoxes() {
+        if (theImage === null) return;
+        this._clearSelections();
+        this._clearSquareResults();
+        this._clearHeatmap();
+        disableSelection();
+
+        if (theSquareData === null) {
+            this._postMessage("predict_squares_for_bounding_boxes", theImage);
+        } else {
+            this._clearPredictionsList();
+            this.updateBoundingBoxes();
         }
     }
 
@@ -648,9 +677,9 @@ class ModelWorker {
     }
 
     // reuse prediction list div
-    _updateGroupList() {
+    updateGroupList() {
         if (theSquareData === null) return;
-        this.predictionList.innerHTML = "";
+        this._clearPredictionsList();
         let addedGroups = {};
         theSquareData
             .toSorted((a, b) => a.groupId - b.groupId)
@@ -677,6 +706,10 @@ class ModelWorker {
         this.heatmapOpacity.value = value;
         this.heatmap_canvas.style.opacity = this.heatmapOpacity.value;
         this.heatmapOpacity.disabled = false;
+    }
+
+    _clearPredictionsList() {
+        this.predictionList.innerHTML = "";
     }
 
 }
@@ -1000,8 +1033,8 @@ class ClassGrouper {
     constructor() {
 
         // todo: needed here?
-        this.includeGroups = {"dog (canid)": [151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275], "fox": [277, 278, 279, 280], "cat": [281, 282, 283, 284, 285], "bird": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102], "fish": [389, 390, 391, 392, 393, 394, 395, 396], "snake": [52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68], "monkey": [365, 366, 367, 368, 369, 370, 371, 372, 373, 374, 375, 376, 377, 378, 379, 380, 381], "bear": [294, 295, 296, 297], "big_cats": [286, 287, 288, 289, 290, 291, 292, 293], "horse": [304, 305, 306], "deer": [301, 302, 303], "rabbit": [330, 331, 332], "squirrel": [335, 336], "cattle": [345, 346, 347], "sheep": [348, 349], "elephant": [386, 387], "bike": [444, 870, 880], "vehicle": [407, 436, 468, 479, 511, 555, 569, 573, 581, 586, 609, 627, 654, 656, 661, 675, 717, 734, 751, 757, 779, 817, 864, 866, 867]};
-        this.excludeGroups = {"furniture": [508, 509, 510, 511, 512, 513, 514, 515, 516, 894], "electronics": [754, 755, 756, 757, 758, 759, 760, 761, 762, 763, 764, 765, 766, 767, 768, 769], "sports_equipment": [701, 702, 703, 704, 705, 706, 707, 708, 709, 710, 711, 712, 713, 714, 715, 716, 717, 718, 719, 720, 721, 722, 723, 724, 725, 726, 727, 728, 729, 730, 731, 732, 733, 734, 735, 736], "containers": [463, 464, 465, 466, 467, 468, 469, 470, 471], "tools": [845, 846, 847, 848, 849, 850, 851, 852, 853, 854, 855, 856, 857, 858, 859, 860, 861, 862, 863, 864, 865], "clothing": [600, 601, 602, 603, 604, 605, 606, 607, 608, 609, 610, 611, 612, 613, 614, 615, 616, 617, 618, 619, 620, 621], "interior_items": [517, 518, 519, 520, 521, 522, 523, 524, 525, 526, 527, 528, 529, 530, 531, 532, 533, 534, 535, 536, 537, 538, 539, 540, 541, 542, 543, 544, 545, 546, 547, 548, 549, 550, 551, 552, 553, 554, 555, 556, 557, 558, 559, 560, 561, 562, 563, 564, 565, 566, 567, 568, 569, 570, 571, 572, 573, 574, 575, 576, 577, 578, 579, 580, 581, 582, 583, 584, 585, 586, 587, 588, 589, 590, 591, 592, 593, 594, 595, 596, 597, 598, 599], "misc": [403, 677, 784, 799, 908, 977]};
+        this.includeGroups = include_groups; // {"dog (canid)": [151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275], "fox": [277, 278, 279, 280], "cat": [281, 282, 283, 284, 285], "bird": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102], "fish": [389, 390, 391, 392, 393, 394, 395, 396], "snake": [52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68], "monkey": [365, 366, 367, 368, 369, 370, 371, 372, 373, 374, 375, 376, 377, 378, 379, 380, 381], "bear": [294, 295, 296, 297], "big_cats": [286, 287, 288, 289, 290, 291, 292, 293], "horse": [304, 305, 306], "deer": [301, 302, 303], "rabbit": [330, 331, 332], "squirrel": [335, 336], "cattle": [345, 346, 347], "sheep": [348, 349], "elephant": [386, 387], "bike": [444, 870, 880], "vehicle": [407, 436, 468, 479, 511, 555, 569, 573, 581, 586, 609, 627, 654, 656, 661, 675, 717, 734, 751, 757, 779, 817, 864, 866, 867]};
+        this.excludeGroups = exclude_groups; // {"furniture": [508, 509, 510, 511, 512, 513, 514, 515, 516, 894], "electronics": [754, 755, 756, 757, 758, 759, 760, 761, 762, 763, 764, 765, 766, 767, 768, 769], "sports_equipment": [701, 702, 703, 704, 705, 706, 707, 708, 709, 710, 711, 712, 713, 714, 715, 716, 717, 718, 719, 720, 721, 722, 723, 724, 725, 726, 727, 728, 729, 730, 731, 732, 733, 734, 735, 736], "containers": [463, 464, 465, 466, 467, 468, 469, 470, 471], "tools": [845, 846, 847, 848, 849, 850, 851, 852, 853, 854, 855, 856, 857, 858, 859, 860, 861, 862, 863, 864, 865], "clothing": [600, 601, 602, 603, 604, 605, 606, 607, 608, 609, 610, 611, 612, 613, 614, 615, 616, 617, 618, 619, 620, 621], "interior_items": [517, 518, 519, 520, 521, 522, 523, 524, 525, 526, 527, 528, 529, 530, 531, 532, 533, 534, 535, 536, 537, 538, 539, 540, 541, 542, 543, 544, 545, 546, 547, 548, 549, 550, 551, 552, 553, 554, 555, 556, 557, 558, 559, 560, 561, 562, 563, 564, 565, 566, 567, 568, 569, 570, 571, 572, 573, 574, 575, 576, 577, 578, 579, 580, 581, 582, 583, 584, 585, 586, 587, 588, 589, 590, 591, 592, 593, 594, 595, 596, 597, 598, 599], "misc": [403, 677, 784, 799, 908, 977]};
         this.includedClasses = new Set(
             Object.values(this.includeGroups).flat()
         );

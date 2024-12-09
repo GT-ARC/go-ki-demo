@@ -91,7 +91,7 @@ function drawBoundingBox(box, canvasId, color = '#ff0000') {
     const [bottomRow, rightCol] = box.bottomRight;
 
     // give each box a slight offset such that the boxes' edges dont overlap 100%
-    const offset = Math.floor(20 * Math.random()) - 10;
+    const offset = 0; // Math.floor(20 * Math.random()) - 10;
 
     // Calculate rectangle dimensions, also make sure it stays in canvas bounds
     let x = Math.round(leftCol * cellSize) + offset;

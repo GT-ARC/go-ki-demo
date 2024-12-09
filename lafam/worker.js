@@ -14,7 +14,7 @@ let fc_wo_pooling; // fc without average-pooling
 let results;
 let activations;
 let output_weights;
-let iDontKnow;
+let squareClassModel;
 
 
 onmessage = async (e) => {
@@ -115,7 +115,7 @@ onmessage = async (e) => {
         executionProviders: ["wasm"],
     });
 
-    iDontKnow = await ort.InferenceSession.create("resnet_masking_1x1_3x3.onnx", {
+    squareClassModel = await ort.InferenceSession.create("resnet_masking_1x1_3x3.onnx", {
         executionProviders: ["wasm"],
     });
 
@@ -129,11 +129,8 @@ onmessage = async (e) => {
 
 async function predict_per_square(tensor = null) {
     const imgDataTensor = new ort.Tensor("float32", tensor, [1, 3, INPUT_HEIGHT, INPUT_WIDTH,]);
-    const results = await iDontKnow.run({l_x_: imgDataTensor});
-    return {
-        logits: results.max_1.cpuData,
-        classIds: results.max_1_1.cpuData
-    };
+    const results = await squareClassModel.run({ l_x_: imgDataTensor });
+    return { logits: results.max_1.cpuData, classIds: results.max_1_1.cpuData };
 }
 
 function softmax(arr) {
