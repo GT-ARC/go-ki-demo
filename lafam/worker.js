@@ -1,9 +1,9 @@
 // imort onnxruntime-web by url into worker
 importScripts(
-    "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.3/dist/ort.min.js"
+  "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.3/dist/ort.min.js"
 );
 ort.env.wasm.wasmPaths =
-    "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.3/dist/";
+  "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.3/dist/";
 
 const INPUT_WIDTH = 224;
 const INPUT_HEIGHT = 224;
@@ -30,9 +30,9 @@ onmessage = async (e) => {
     activations = await layer4.run({ l_x_: imgDataTensor });
     activations = activations.resnet_layer4_1.cpuData;
     const activationsTensor = new ort.Tensor(
-        "float32",
-        activations,
-        [1, 2048, 7, 7]
+      "float32",
+      activations,
+      [1, 2048, 7, 7]
     );
 
     results = await fc.run({ l_activations_: activationsTensor });
@@ -120,7 +120,7 @@ onmessage = async (e) => {
   });
 
   output_weights = await fetch("resnet_output_weights.bin").then((r) =>
-      r.arrayBuffer()
+    r.arrayBuffer()
   );
   output_weights = new Float32Array(output_weights);
 
@@ -136,14 +136,14 @@ async function predict_per_square(tensor = null) {
 function softmax(arr) {
   return arr.map(function (value, index) {
     return (
-        Math.exp(value) /
-        arr
-            .map(function (y) {
-              return Math.exp(y);
-            })
-            .reduce(function (a, b) {
-              return a + b;
-            })
+      Math.exp(value) /
+      arr
+        .map(function (y) {
+          return Math.exp(y);
+        })
+        .reduce(function (a, b) {
+          return a + b;
+        })
     );
   });
 }
