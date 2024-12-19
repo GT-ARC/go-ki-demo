@@ -85,6 +85,7 @@ class ModelWorker {
     this.ctx_img = this.img_canvas.getContext("2d");
     this.heatmap_canvas = document.getElementById("heatmap-canvas");
     this.ctx_heatmap = this.heatmap_canvas.getContext("2d");
+    this.bb_canvas = document.getElementById("bounding-boxes-canvas");
     this.startButton = document.getElementById("start-button");
     this.switchCameraButton = document.getElementById("switch-camera-button");
     this.heatmapOpacity = document.getElementById("heatmap-opacity");
@@ -386,9 +387,11 @@ class ModelWorker {
     this.heatmap_canvas.width = this.min_side;
     this.heatmap_canvas.height = this.min_side;
 
+    this.toggleModeSelect(false);
     theSquareData = null;
-    const imageData = this.getImage(this.video);
-    this._postMessage("predict", imageData);
+    this.modeSelect.value = "predict";
+    theImage = this.getImage(this.video);
+    this._postMessage("predict", theImage);
   }
 
   _onmessage(e) {
@@ -402,8 +405,6 @@ class ModelWorker {
     if (data.status === "results") {
       this.results = data;
       this.updateResults(data.heatmap, data.predictions, data.logits);
-      this.togglePaletteSelect(true);
-      toggleSelection(true);
     }
     if (data.status === "weighted_heatmap") {
       this.updateHeatmap(data.heatmap);
@@ -414,6 +415,7 @@ class ModelWorker {
     }
 
     if (data.status === "square_results_for_groupmap") {
+      // deprecated
       theSquareData = this.preprocessSquareResults(data.data);
       this.updateGroupMap();
       this.updateGroupList();
@@ -423,8 +425,6 @@ class ModelWorker {
       theSquareData = this.preprocessSquareResults(data.data);
       this.updateBoundingBoxes()
     }
-
-    this.toggleModeSelect(true);
   }
 
   _clearPredictionSelections() {
@@ -485,7 +485,14 @@ class ModelWorker {
   }
 
   updateResults(heatmap, predictions, logits) {
-    this.toggleOpacitySlider(true, 0.5);
+    this._clearSelections();
+    this._clearGroupMapDisplay();
+    this._clearHeatmap();
+    this._clearBoundingBoxes();
+    this.toggleOpacitySlider(true);
+    this.togglePaletteSelect(true);
+    toggleSelection(true);
+
     this.updateHeatmap(heatmap);
 
     let top_n_idx = argmax_top_n(logits, TOP_N, 1.7);
@@ -493,7 +500,10 @@ class ModelWorker {
     this._updatePredictionList(top_n_idx, predictions, logits);
 
     if (!this.video.paused) {
-      this._postMessage("predict", this.getImage(this.video));
+      theImage = this.getImage(this.video);
+      this._postMessage("predict", theImage);
+    } else {
+      this.toggleModeSelect(true);
     }
   }
 
@@ -512,51 +522,60 @@ class ModelWorker {
     if (theSquareData === null) {
       this._postMessage("predict_squares_for_bounding_boxes", theImage);
     } else {
-      this._clearPredictionsList();
       this.updateBoundingBoxes();
     }
   }
 
   updateGroupMap() {
-    this.toggleOpacitySlider(true, 0.5);
-    this.togglePaletteSelect(false);
     this._clearSelections();
     this._clearGroupMapDisplay();
     this._clearHeatmap();
+    this._clearBoundingBoxes();
+    this.togglePaletteSelect(false);
+    this.toggleModeSelect(true);
     toggleSelection(false);
 
     // show logits+classId in square
     theSquareData.forEach((square, i) => {
       const div = document.querySelector(`div[data-idx='${i}']`);
       if (div !== null) {
-        const logit = square.logit.toFixed(2);
-        const cls = square.classId;
         const group = square.groupId;
-        div.innerHTML = `${logit}<br/>${group}`;
+        const logit = square.logit.toFixed(2);
         div.classList.add("class-display");
+        div.innerHTML = `${logit}<br/>${group}`;
       } else {
         addLogMsg('Error: could not find div with data-idx=' + i);
       }
     });
 
+    // calc and show group map
     const heatmap = this.makeClassHeatmap(theSquareData);
     this.setClassHeatmap(heatmap);
+
+    // calc and show group bounding boxes
+    const groupGrid2d = to2DArray(theSquareData.map(square => square.groupId), 7, 7);
+    const areas = findAreas(groupGrid2d, [-1]);
+    const boundingBoxes = findBoundingBoxes(areas);
+    drawBoundingBoxes(boundingBoxes, 'bounding-boxes-canvas');
   }
 
   updateBoundingBoxes() {
     if (theSquareData === null) return;
-    this.toggleOpacitySlider(false, 1.0);
-    this.togglePaletteSelect(false);
     this._clearPredictionsList();
     this._clearSelections();
     this._clearGroupMapDisplay();
     this._clearHeatmap();
+    this._clearBoundingBoxes();
+    this.toggleOpacitySlider(false, 1.0);
+    this.togglePaletteSelect(false);
+    this.toggleModeSelect(true);
     toggleSelection(false);
 
     const groupGrid2d = to2DArray(theSquareData.map(square => square.groupId), 7, 7);
     const areas = findAreas(groupGrid2d, [-1]);
     const boundingBoxes = findBoundingBoxes(areas);
-    drawBoundingBoxes(boundingBoxes, 'heatmap-canvas');
+    drawBoundingBoxes(boundingBoxes, 'bounding-boxes-canvas');
+
   }
 
   preprocessSquareResults(data) {
@@ -591,6 +610,12 @@ class ModelWorker {
 
   _clearHeatmap() {
     const canvas = this.heatmap_canvas;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  _clearBoundingBoxes() {
+    const canvas = this.bb_canvas;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   }

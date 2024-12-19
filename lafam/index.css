@@ -77,8 +77,17 @@ html {
     opacity: 0.5;
 }
 
+#bounding-boxes-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
+    opacity: 1.0;
+}
+
 #img-canvas,
-#heatmap-canvas {
+#heatmap-canvas,
+#bounding-boxes-canvas {
     max-width: 100%;
     height: auto;
 }
@@ -231,7 +240,7 @@ html {
 
 #grid {
     display: none;
-    z-index: 2;
+    z-index: 3;
     position: absolute;
     top: 0;
     left: 0;
