@@ -77,8 +77,17 @@ html {
     opacity: 0.5;
 }
 
+#bounding-boxes-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
+    opacity: 1.0;
+}
+
 #img-canvas,
-#heatmap-canvas {
+#heatmap-canvas,
+#bounding-boxes-canvas {
     max-width: 100%;
     height: auto;
 }
@@ -231,18 +240,33 @@ html {
 
 #grid {
     display: none;
-    z-index: 2;
+    z-index: 3;
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
     grid-template-columns: repeat(7, 1fr);
-    cursor: pointer;
 
 }
 
-#grid div {
+.grid-selection {
+    cursor: pointer;
+    border: 1px solid #fff;
+    transition: box-shadow 0.2s;
+}
+
+.grid-selection:hover {
+    border: 1px solid #fff;
+    box-shadow: 0 0 20px 5px #fff;
+}
+
+.grid-selection.selected {
+    border: 1px solid #e58253;
+    box-shadow: 0 0 10px 5px #48abe0;
+}
+
+/* #grid div {
     border: 1px solid #fff;
     transition: box-shadow 0.2s;
 }
@@ -255,11 +279,10 @@ html {
 #grid div.selected {
     border: 1px solid #e58253;
     box-shadow: 0 0 10px 5px #48abe0;
-
 }
 
 
-/* #grid div::after {
+#grid div::after {
     background: radial-gradient(
       600px circle at var(--mouse-x) var(--mouse-y), 
       rgba(255, 255, 255, 0.6),
@@ -426,7 +449,7 @@ html {
     }
 }
 
-#palette-select {
+select.lafam-select {
     display: inline-block;
     width: auto;
     padding: 8px 30px 8px 12px;
@@ -441,6 +464,25 @@ html {
     cursor: pointer;
     line-height: 1.1;
     outline: none;
+    margin-left: 5px;
+}
+
+button.lafam-btn {
+    display: inline-block;
+    width: auto;
+    padding: 8px 12px 8px 12px;
+    font-size: 16px;
+    border-radius: 5px;
+    border: 2px solid #e58253;
+    background-color: #fff;
+    color: #333;
+    cursor: pointer;
+    line-height: 1.1;
+    margin-left: 5px;
+}
+
+button.lafam-btn:hover {
+    background-color: #ccc;
 }
 
 /* Optionally, add a wrap div for positioning a custom background arrow */
@@ -537,4 +579,20 @@ body.show-help .overlay {
 
 .multiple-cameras .overlay .button-group button.overlay-switch-camera {
     display: block;
+}
+
+div.class-display {
+    font-size: 0.75em;
+    font-weight: bold;
+    color: white;
+    text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.8);
+    text-align: center;
+    font-family: Arial, Helvetica, sans-serif;
+    padding-top: 1em;
+}
+
+@media (min-width: 800px) {
+    div.class-display {
+        font-size: 1em;
+    }
 }

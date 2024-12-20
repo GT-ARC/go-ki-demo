@@ -1,4 +1,4 @@
-<html>
+<html lang="en">
 
 <head>
     <meta charset="utf-8">
@@ -24,6 +24,7 @@
                 </div>
                 <canvas id="img-canvas" width="1024" height="1024"></canvas>
                 <canvas id="heatmap-canvas" width="1024" height="1024"></canvas>
+                <canvas id="bounding-boxes-canvas" width="1024" height="1024"></canvas>
                 <div id="grid">
                     <div data-idx="0"></div>
                     <div data-idx="1"></div>
@@ -114,11 +115,20 @@
                             <option value="misc.png">Misc</option>
                         </select>
                     </div>
-                    <div class="select-wrapper">
-                        <select id="palette-select">
+                    <div class="select-wrapper" style="gap: 10px;">
+                        <select id="palette-select" class="lafam-select">
 
                         </select>
+
+                        <select id="mode-select" class="lafam-select">
+                            <option value="predict" selected>Predict</option>
+                            <option value="imagenet-classes">Imagenet Classes</option>
+                            <option value="groupmap-bbs">Groups + Bounding Boxes</option>
+                            <!-- option value="predict_squares_for_bounding_boxes">Show Bounding Boxes</option -->
+                        </select>
                     </div>
+                    <!-- button type="button" id="btn-show-logits" class="lafam-btn">Show Groups</button -->
+                    <!-- button type="button" id="btn-show-bboxes" class="lafam-btn">Show Bounding Boxes</button -->
 
                 </div>
                 <div id="slider-container">
@@ -159,12 +169,13 @@
         <button onclick="updateServiceWorker()">Hard reload</button>
         <h4>Available devices</h4>
         <textarea id="devices" style='width: 100%;' rows='10' disabled></textarea>
-        <h4>Log</h3>
+        <h3>Log</h3>
             <textarea id='log' style='width: 100%;' rows='10' disabled></textarea>
 
 
     </section>
     <br>
+    <script src="boundingboxes.js"></script>
     <script src="index.js"></script>
 
 </body>

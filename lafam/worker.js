@@ -10,12 +10,17 @@ const INPUT_HEIGHT = 224;
 
 let layer4;
 let fc;
+let fc_wo_pooling; // fc without average-pooling
 let results;
 let activations;
 let output_weights;
+let squareClassModel;
+
 
 onmessage = async (e) => {
   const { data } = e;
+  console.log('status', data.status);
+
   if (data.status === "predict") {
     const imgDataTensor = new ort.Tensor("float32", data.tensor, [
       1,
@@ -31,6 +36,7 @@ onmessage = async (e) => {
       activations,
       [1, 2048, 7, 7]
     );
+
     results = await fc.run({ l_activations_: activationsTensor });
     results = results.fc_1.cpuData;
     const predictions = Array.from(softmax(results));
@@ -41,6 +47,23 @@ onmessage = async (e) => {
       logits: results,
       predictions: predictions,
       heatmap: heatmap,
+    });
+  }
+
+  if (data.status === "groupmap-bbs") {
+    const squaresData = await predict_per_square(data.tensor);
+    postMessage({
+      status: "square_results_for_groupmap",
+      data: squaresData,
+    });
+  }
+
+  if (data.status === "imagenet-classes") {
+    const squaresData = await predict_per_square(data.tensor);
+    console.log('classmap done');
+    postMessage({
+      status: "square_results_for_classmap",
+      data: squaresData,
     });
   }
 
@@ -91,6 +114,14 @@ onmessage = async (e) => {
     executionProviders: ["wasm"],
   });
 
+  fc_wo_pooling = await ort.InferenceSession.create("resnet50_imagenet_fc_wo_averagepooling.onnx", {
+    executionProviders: ["wasm"],
+  });
+
+  squareClassModel = await ort.InferenceSession.create("resnet_masking_1x1_3x3.onnx", {
+    executionProviders: ["wasm"],
+  });
+
   output_weights = await fetch("resnet_output_weights.bin").then((r) =>
     r.arrayBuffer()
   );
@@ -98,6 +129,12 @@ onmessage = async (e) => {
 
   postMessage({ status: "ready" });
 })();
+
+async function predict_per_square(tensor = null) {
+  const imgDataTensor = new ort.Tensor("float32", tensor, [1, 3, INPUT_HEIGHT, INPUT_WIDTH,]);
+  const results = await squareClassModel.run({ l_x_: imgDataTensor });
+  return { logits: results.max_1.cpuData, classIds: results.max_1_1.cpuData };
+}
 
 function softmax(arr) {
   return arr.map(function (value, index) {
@@ -122,7 +159,7 @@ function averageHeatmap(arr, shape, weights = null, normalize = true) {
 
       for (let k = 0; k < shape[0]; k++) {
         let w = weights ? weights[k] : 1;
-        w = w < 0 ? 0 : w;
+        w = Math.max(w, 0);
         sum += w * arr[k * shape[1] * shape[2] + i * shape[2] + j];
       }
 
