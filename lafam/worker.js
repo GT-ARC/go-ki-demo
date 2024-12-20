@@ -19,6 +19,8 @@ let squareClassModel;
 
 onmessage = async (e) => {
   const { data } = e;
+  console.log('status', data.status);
+
   if (data.status === "predict") {
     const imgDataTensor = new ort.Tensor("float32", data.tensor, [
       1,
@@ -48,7 +50,7 @@ onmessage = async (e) => {
     });
   }
 
-  if (data.status === "predict_squares_for_groupmap") {
+  if (data.status === "groupmap-bbs") {
     const squaresData = await predict_per_square(data.tensor);
     postMessage({
       status: "square_results_for_groupmap",
@@ -56,8 +58,9 @@ onmessage = async (e) => {
     });
   }
 
-  if (data.status === "predict_squares_for_classmap") {
+  if (data.status === "imagenet-classes") {
     const squaresData = await predict_per_square(data.tensor);
+    console.log('classmap done');
     postMessage({
       status: "square_results_for_classmap",
       data: squaresData,

@@ -389,9 +389,9 @@ class ModelWorker {
 
     this.toggleModeSelect(false);
     theSquareData = null;
-    this.modeSelect.value = "predict";
     theImage = this.getImage(this.video);
-    this._postMessage("predict", theImage);
+    const status = this.modeSelect.value;
+    this._postMessage(status, theImage);
   }
 
   _onmessage(e) {
@@ -405,6 +405,7 @@ class ModelWorker {
     if (data.status === "results") {
       this.results = data;
       this.updateResults(data.heatmap, data.predictions, data.logits);
+      this._updateVideo();
     }
     if (data.status === "weighted_heatmap") {
       this.updateHeatmap(data.heatmap);
@@ -418,12 +419,14 @@ class ModelWorker {
       theSquareData = this.preprocessSquareResults(data.data);
       this.updateGroupMap();
       this.updateGroupList();
+      this._updateVideo();
     }
 
     if (data.status === "square_results_for_classmap") {
       theSquareData = this.preprocessSquareResults(data.data);
       this.updateClassMap();
       this.updateClassList();
+      this._updateVideo();
     }
 
   }
@@ -474,6 +477,7 @@ class ModelWorker {
 
   processModeChange() {
     const value = this.modeSelect.value;
+    console.log('process mode change', value);
     if (value === 'predict') {
       this._postMessage('predict', theImage);
     } else if (value === 'imagenet-classes') {
@@ -495,14 +499,15 @@ class ModelWorker {
     toggleSelection(true);
 
     this.updateHeatmap(heatmap);
-
     let top_n_idx = argmax_top_n(logits, TOP_N, 1.7);
-
     this._updatePredictionList(top_n_idx, predictions, logits);
+  }
 
+  _updateVideo() {
     if (!this.video.paused) {
       theImage = this.getImage(this.video);
-      this._postMessage("predict", theImage);
+      const status = this.modeSelect.value;
+      this._postMessage(status, theImage);
     } else {
       this.toggleModeSelect(true);
     }
@@ -511,21 +516,27 @@ class ModelWorker {
   showGroupmap() {
     if (theImage === null) return;
     if (theSquareData === null) {
-      this._postMessage("predict_squares_for_groupmap", theImage);
+      this._postMessage("groupmap-bbs", theImage);
     } else {
       this.updateGroupMap();
       this.updateGroupList();
     }
+
+    this._updateVideo();
   }
 
   showImagenetClasses() {
     if (theImage === null) return;
     if (theSquareData === null) {
-      this._postMessage("predict_squares_for_classmap", theImage);
+      console.log('posting image data for classmap');
+      this._postMessage("imagenet-classes", theImage);
     } else {
+      console.log('test')
       this.updateClassMap();
       this.updateClassList();
     }
+
+    this._updateVideo();
   }
 
   updateGroupMap() {
@@ -550,8 +561,11 @@ class ModelWorker {
       }
     });
 
-    // calc and show group map
-    const heatmap = this.makeClassHeatmap(theSquareData);
+    // calc and show groupmap
+    const groupIds = theSquareData
+      .map(square => square.classId)
+      .map(classId => grouper.classToGroup(classId));
+    const heatmap = this.makeClassHeatmap(groupIds);
     this.setClassHeatmap(heatmap);
 
     // calc and show group bounding boxes
@@ -596,12 +610,10 @@ class ModelWorker {
     return squareData;
   }
 
-  makeClassHeatmap(squareData) {
-    const classIds = squareData.map(square => square.classId);
-    const groupIds = classIds.map(classId => grouper.classToGroup(classId));
-    const min = Math.min(...groupIds);
-    const max = Math.max(...groupIds);
-    return groupIds.map(groupId => (groupId - min) / (max - min + 1e-6));
+  makeClassHeatmap(squareClasses) {
+    const min = Math.min(...squareClasses);
+    const max = Math.max(...squareClasses);
+    return squareClasses.map(classId => (classId - min) / (max - min + 1e-6));
   }
 
   _clearGroupMapDisplay() {
@@ -727,11 +739,53 @@ class ModelWorker {
   }
 
   updateClassMap() {
-    // todo: show imagenet class in each square + heatmap (adjust colors)
+    console.log('update class map');
+    this._clearSelections();
+    this._clearGroupMapDisplay();
+    this._clearHeatmap();
+    this._clearBoundingBoxes();
+    this.togglePaletteSelect(false);
+    this.toggleModeSelect(true);
+    toggleSelection(false);
+
+    // show logits+classId in square
+    theSquareData.forEach((square, i) => {
+      const div = document.querySelector(`div[data-idx='${i}']`);
+      if (div !== null) {
+        const classId = square.classId;
+        const logit = square.logit.toFixed(2);
+        div.classList.add("class-display");
+        div.innerHTML = `${logit}<br/>${classId}`;
+      } else {
+        addLogMsg('Error: could not find div with data-idx=' + i);
+      }
+    });
+
+    // calc and show group map
+    const classIds = theSquareData
+      .map(square => square.classId);
+    const heatmap = this.makeClassHeatmap(classIds);
+    this.setClassHeatmap(heatmap);
   }
 
   updateClassList() {
-    // todo: show name for each class in prediction list div
+    if (theSquareData === null) return;
+    this._clearPredictionsList();
+    let addedClasses = {};
+    theSquareData
+      .filter(square => square.classId >= 0)
+      .toSorted((a, b) => a.classId - b.classId)
+      .slice(0, 12)
+      .forEach(square => {
+        if (!addedClasses[square.classId]) {
+          const div = document.createElement("div");
+          div.style.padding = "10px";
+          div.style.fontWeight = "bold";
+          div.innerText = `${square.classId}: ${this.imagenet_classes[square.classId]}`;
+          this.predictionList.appendChild(div);
+          addedClasses[square.classId] = true;
+        }
+      });
   }
 
 }
