@@ -415,16 +415,17 @@ class ModelWorker {
     }
 
     if (data.status === "square_results_for_groupmap") {
-      // deprecated
       theSquareData = this.preprocessSquareResults(data.data);
       this.updateGroupMap();
       this.updateGroupList();
     }
 
-    if (data.status === "square_results_for_bounding_boxes") {
+    if (data.status === "square_results_for_classmap") {
       theSquareData = this.preprocessSquareResults(data.data);
-      this.updateBoundingBoxes()
+      this.updateClassMap();
+      this.updateClassList();
     }
+
   }
 
   _clearPredictionSelections() {
@@ -475,10 +476,10 @@ class ModelWorker {
     const value = this.modeSelect.value;
     if (value === 'predict') {
       this._postMessage('predict', theImage);
-    } else if (value === 'predict_squares_for_groupmap') {
-      this.showLogits();
-    } else if (value === 'predict_squares_for_bounding_boxes') {
-      this.showBoundingBoxes();
+    } else if (value === 'imagenet-classes') {
+      this.showImagenetClasses();
+    } else if (value === 'groupmap-bbs') {
+      this.showGroupmap();
     } else {
       console.error('Invalid mode-select value: ', value);
     }
@@ -507,7 +508,7 @@ class ModelWorker {
     }
   }
 
-  showLogits() {
+  showGroupmap() {
     if (theImage === null) return;
     if (theSquareData === null) {
       this._postMessage("predict_squares_for_groupmap", theImage);
@@ -517,12 +518,13 @@ class ModelWorker {
     }
   }
 
-  showBoundingBoxes() {
+  showImagenetClasses() {
     if (theImage === null) return;
     if (theSquareData === null) {
-      this._postMessage("predict_squares_for_bounding_boxes", theImage);
+      this._postMessage("predict_squares_for_classmap", theImage);
     } else {
-      this.updateBoundingBoxes();
+      this.updateClassMap();
+      this.updateClassList();
     }
   }
 
@@ -559,23 +561,24 @@ class ModelWorker {
     drawBoundingBoxes(boundingBoxes, 'bounding-boxes-canvas');
   }
 
-  updateBoundingBoxes() {
+  updateGroupList() {
+    // reuse prediction list div
     if (theSquareData === null) return;
     this._clearPredictionsList();
-    this._clearSelections();
-    this._clearGroupMapDisplay();
-    this._clearHeatmap();
-    this._clearBoundingBoxes();
-    this.toggleOpacitySlider(false, 1.0);
-    this.togglePaletteSelect(false);
-    this.toggleModeSelect(true);
-    toggleSelection(false);
-
-    const groupGrid2d = to2DArray(theSquareData.map(square => square.groupId), 7, 7);
-    const areas = findAreas(groupGrid2d, [-1]);
-    const boundingBoxes = findBoundingBoxes(areas);
-    drawBoundingBoxes(boundingBoxes, 'bounding-boxes-canvas');
-
+    let addedGroups = {};
+    theSquareData
+      .toSorted((a, b) => a.groupId - b.groupId)
+      .filter(square => square.groupId >= 0)
+      .forEach(square => {
+        if (!addedGroups[square.groupId]) {
+          const div = document.createElement("div");
+          div.style.padding = "10px";
+          div.style.fontWeight = "bold";
+          div.innerText = `${square.groupId}: ${grouper.getGroupName(square.groupId)}`;
+          this.predictionList.appendChild(div);
+          addedGroups[square.groupId] = true;
+        }
+      });
   }
 
   preprocessSquareResults(data) {
@@ -695,26 +698,6 @@ class ModelWorker {
     this.predictionList.appendChild(fragment);
   }
 
-  // reuse prediction list div
-  updateGroupList() {
-    if (theSquareData === null) return;
-    this._clearPredictionsList();
-    let addedGroups = {};
-    theSquareData
-      .toSorted((a, b) => a.groupId - b.groupId)
-      .filter(square => square.groupId >= 0)
-      .forEach(square => {
-        if (!addedGroups[square.groupId]) {
-          const div = document.createElement("div");
-          div.style.padding = "10px";
-          div.style.fontWeight = "bold";
-          div.innerText = `${square.groupId}: ${grouper.getGroupName(square.groupId)}`;
-          this.predictionList.appendChild(div);
-          addedGroups[square.groupId] = true;
-        }
-      });
-  }
-
   toggleOpacitySlider(enabled, value = null) {
     if (value !== null) {
       this.heatmapOpacity.value = value;
@@ -741,6 +724,14 @@ class ModelWorker {
 
   _clearPredictionsList() {
     this.predictionList.innerHTML = "";
+  }
+
+  updateClassMap() {
+    // todo: show imagenet class in each square + heatmap (adjust colors)
+  }
+
+  updateClassList() {
+    // todo: show name for each class in prediction list div
   }
 
 }

@@ -56,10 +56,10 @@ onmessage = async (e) => {
     });
   }
 
-  if (data.status === "predict_squares_for_bounding_boxes") {
+  if (data.status === "predict_squares_for_classmap") {
     const squaresData = await predict_per_square(data.tensor);
     postMessage({
-      status: "square_results_for_bounding_boxes",
+      status: "square_results_for_classmap",
       data: squaresData,
     });
   }
