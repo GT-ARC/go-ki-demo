@@ -781,7 +781,7 @@ class ModelWorker {
         return true;
       })
       .toSorted((a, b) => a - b)
-      .slice(0, 12)
+      // .slice(0, 17)
       .forEach(classId => {
         const div = document.createElement("div");
         div.style.padding = "10px";
