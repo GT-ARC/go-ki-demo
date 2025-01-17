@@ -771,20 +771,23 @@ class ModelWorker {
   updateClassList() {
     if (theSquareData === null) return;
     this._clearPredictionsList();
-    let addedClasses = {};
+    const seen = {}
     theSquareData
-      .filter(square => square.classId >= 0)
-      .toSorted((a, b) => a.classId - b.classId)
-      .slice(0, 12)
-      .forEach(square => {
-        if (!addedClasses[square.classId]) {
-          const div = document.createElement("div");
-          div.style.padding = "10px";
-          div.style.fontWeight = "bold";
-          div.innerText = `${square.classId}: ${this.imagenet_classes[square.classId]}`;
-          this.predictionList.appendChild(div);
-          addedClasses[square.classId] = true;
-        }
+      .map(square => square.classId)
+      .filter((classId, index, self) => {
+        if (classId <= 0) return false;
+        if (seen[classId]) return false;
+        seen[classId] = true;
+        return true;
+      })
+      .toSorted((a, b) => a - b)
+      // .slice(0, 17)
+      .forEach(classId => {
+        const div = document.createElement("div");
+        div.style.padding = "10px";
+        div.style.fontWeight = "bold";
+        div.innerText = `${classId}: ${this.imagenet_classes[classId]}`;
+        this.predictionList.appendChild(div);
       });
   }
 
